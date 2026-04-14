@@ -1,0 +1,51 @@
+[project]
+name = "erinys-memory"
+version = "0.1.0"
+description = "Reflexive Memory for AI Agents — MCP Server"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+authors = [
+    { name = "GhostyAI-HA" },
+]
+keywords = ["mcp", "memory", "ai-agent", "sqlite", "vector-search", "llm"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Database",
+]
+dependencies = [
+    "fastmcp>=3.2.0",
+    "sqlite-vec>=0.1.6",
+    "fastembed>=0.4.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24",
+    "pytest-cov>=5.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/GhostyAI-HA/ERINYS-mem"
+Repository = "https://github.com/GhostyAI-HA/ERINYS-mem"
+Issues = "https://github.com/GhostyAI-HA/ERINYS-mem/issues"
+Changelog = "https://github.com/GhostyAI-HA/ERINYS-mem/blob/main/CHANGELOG.md"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.backends"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/erinys_memory"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
