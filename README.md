@@ -228,24 +228,6 @@ Add to `~/.gemini/antigravity/settings.json` under `mcpServers`:
 - `erinys_session_end` — End session with summary
 - `erinys_session_summary` — Save structured summary
 
-## How ERINYS Compares
-
-| Feature | ERINYS | Mem0 | Official MCP Memory |
-|:--|:--|:--|:--|
-| **Hybrid search** (keyword + vector) | ✅ FTS5 + sqlite-vec RRF | ✅ Vector + graph | ❌ Knowledge graph only |
-| **Time-decay forgetting** | ✅ Ebbinghaus curve | ⚠️ Priority scoring | ❌ |
-| **3-level distillation** (concrete → abstract → meta) | ✅ | ❌ | ❌ |
-| **Dream Cycle** (collision-based insight) | ✅ | ❌ | ❌ |
-| **Contradiction detection** | ✅ | ⚠️ Overwrites via resolver | ❌ |
-| **Temporal queries** ("what did we believe in March?") | ✅ Supersede chain | ⚠️ Graph invalidation | ❌ |
-| **Local-first** (no cloud API) | ✅ SQLite single file | ❌ Cloud default | ✅ |
-| **Obsidian export** | ✅ [[wikilinks]] | ❌ | ❌ |
-| **Auto-distill on save** | ✅ | ❌ | ❌ |
-| **MCP native** | ✅ 25 tools | ✅ | ✅ |
-| **Self-evaluation** (LOCOMO metrics) | ✅ | ❌ | ❌ |
-
-> **TL;DR** — Most memory servers store and retrieve. ERINYS also forgets, distills, and dreams.
-
 ## Architecture
 
 ```
