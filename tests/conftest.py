@@ -23,7 +23,7 @@ def engine() -> EmbeddingEngine:
 
 @pytest.fixture
 def db() -> Iterator[sqlite3.Connection]:
-    config = ErinysConfig(db_path=":memory:", db_backup_on_init=False)
+    config = ErinysConfig(db_path=":memory:", db_backup_on_init=False, auto_distill_on_save=False)
     connection = init_db(config)
     try:
         yield connection
@@ -63,7 +63,7 @@ def bind_server(
         connection: sqlite3.Connection,
         config: ErinysConfig | None = None,
     ) -> sqlite3.Connection:
-        active_config = config or ErinysConfig(db_path=":memory:", db_backup_on_init=False)
+        active_config = config or ErinysConfig(db_path=":memory:", db_backup_on_init=False, auto_distill_on_save=False)
         monkeypatch.setattr(db_module, "embedding_engine", engine)
         monkeypatch.setattr(server, "embedding_engine", engine)
         monkeypatch.setattr(session_module, "embedding_engine", engine)
