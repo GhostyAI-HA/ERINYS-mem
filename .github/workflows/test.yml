@@ -25,7 +25,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip setuptools wheel
           pip install hatchling hatch-vcs
-          pip install ".[dev]"
+          pip install --no-build-isolation ".[dev]"
 
       - name: Run tests
         run: |
