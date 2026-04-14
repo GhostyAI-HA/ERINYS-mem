@@ -228,6 +228,24 @@ PYTHONPATH=src pytest tests/ -v
 - `erinys_session_end` — End session with summary
 - `erinys_session_summary` — Save structured summary
 
+## 他システムとの比較
+
+| 機能 | ERINYS | Mem0 | Official MCP Memory |
+|:--|:--|:--|:--|
+| **ハイブリッド検索**（キーワード + ベクトル） | ✅ FTS5 + sqlite-vec RRF | ✅ Vector + graph | ❌ KGのみ |
+| **忘却曲線** | ✅ エビングハウス | ⚠️ 優先度スコア | ❌ |
+| **3段階蒸留**（具体 → 抽象 → 原則） | ✅ | ❌ | ❌ |
+| **Dream Cycle**（記憶の衝突から洞察） | ✅ | ❌ | ❌ |
+| **矛盾検出** | ✅ | ⚠️ Resolverで上書き | ❌ |
+| **時間軸クエリ**（「3月時点で何を信じていた？」） | ✅ Supersede chain | ⚠️ グラフ無効化 | ❌ |
+| **ローカル完結**（クラウドAPI不要） | ✅ SQLite 1ファイル | ❌ クラウド前提 | ✅ |
+| **Obsidianエクスポート** | ✅ [[wikilinks]] | ❌ | ❌ |
+| **Save時自動蒸留** | ✅ | ❌ | ❌ |
+| **MCPネイティブ** | ✅ 25ツール | ✅ | ✅ |
+| **自己評価**（LOCOMO指標） | ✅ | ❌ | ❌ |
+
+> **要約** — 多くのメモリサーバーは保存と検索だけ。ERINYSはその上で忘れ、蒸留し、夢を見る。
+
 ## アーキテクチャ
 
 ```
@@ -248,7 +266,7 @@ PYTHONPATH=src pytest tests/ -v
 ## ロードマップ
 
 - [ ] Dream Daemon — Dream Cycleをバックグラウンドで自動実行
-- [ ] Save時の自動蒸留 — `erinys_save`のたびに3段階蒸留を自動実行
+- [x] Save時の自動蒸留 — `erinys_save`のたびに3段階蒸留を自動実行
 - [ ] 自動Prune — DB容量閾値超過時に減衰メモを自動刈り取り
 - [ ] cron対応CLI — `erinys dream --max 10` で夜間バッチ実行
 - [ ] PyPIパッケージ — `pip install erinys-memory`
