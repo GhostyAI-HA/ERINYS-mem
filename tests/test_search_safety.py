@@ -39,7 +39,7 @@ class RecordingConnectionProxy:
 
 
 def _file_db(tmp_path: Path) -> tuple[ErinysConfig, sqlite3.Connection]:
-    config = ErinysConfig(db_path=str(tmp_path / "erinys.db"), db_backup_on_init=False)
+    config = ErinysConfig(db_path=str(tmp_path / "erinys.db"), db_backup_on_init=False, auto_distill_on_save=False)
     return config, init_db(config)
 
 
