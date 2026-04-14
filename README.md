@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/logo.jpg" alt="ERINYS" width="200">
+</p>
+
 # ERINYS — Reflexive Memory for AI Agents
 
 [🇯🇵 日本語版 / Japanese](README_ja.md)

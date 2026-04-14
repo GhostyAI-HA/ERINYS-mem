@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/logo.jpg" alt="ERINYS" width="200">
+</p>
+
 # ERINYS — AIエージェントのための反射記憶
 
 [🇬🇧 English](README.md)
