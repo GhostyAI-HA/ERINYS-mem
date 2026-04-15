@@ -1,7 +1,15 @@
 """ERINYS の設定値を保持する。"""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import os
+
+
+def _parse_positive_int(raw: str, fallback: int) -> int:
+    try:
+        value = int(raw)
+        return value if value > 0 else fallback
+    except (ValueError, TypeError):
+        return fallback
 
 
 @dataclass
@@ -33,3 +41,25 @@ class ErinysConfig:
     audit_retention_days: int = 90
     redact_secret_patterns: bool = True
     auto_distill_on_save: bool = os.environ.get("ERINYS_AUTO_DISTILL", "1") != "0"
+
+    distill_model: str = os.environ.get("ERINYS_DISTILL_MODEL", "gemma3:4b")
+    distill_endpoint: str = os.environ.get(
+        "ERINYS_DISTILL_ENDPOINT", "http://localhost:11434/api/generate"
+    )
+    distill_timeout: int = field(default_factory=lambda: _parse_positive_int(
+        os.environ.get("ERINYS_DISTILL_TIMEOUT", "20"), 20
+    ))
+    distill_use_llm: bool = os.environ.get("ERINYS_DISTILL_USE_LLM", "1") != "0"
+
+    def __post_init__(self) -> None:
+        if self.distill_timeout <= 0:
+            self.distill_timeout = 20
+        if not self.distill_endpoint.startswith(("http://localhost", "http://127.0.0.1")):
+            import warnings
+            warnings.warn(
+                f"distill_endpoint '{self.distill_endpoint}' points outside localhost. "
+                "ERINYS promises 'memory never leaves your machine'. "
+                "Use a local endpoint to honor this contract.",
+                UserWarning,
+                stacklevel=2,
+            )
