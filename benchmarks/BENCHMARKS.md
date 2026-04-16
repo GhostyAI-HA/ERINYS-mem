@@ -197,19 +197,23 @@ Every result JSON in `benchmarks/results/` contains per-question scores. You can
 
 ---
 
-## A Note on Comparisons
+## Landscape
 
-We deliberately do not include a comparison table against other memory systems.
+> **Read before quoting this table.** Systems below publish different metrics. Retrieval recall (R@5) and QA accuracy are not comparable — a system can score 100% on one and 40% on the other. We mark where metrics differ.
 
-Different projects publish different metrics (retrieval recall vs. QA accuracy vs. task completion), on different splits, with different evaluation protocols. Placing them side-by-side creates a misleading impression of direct comparability.
+| System | LongMemEval-S R@5 | LoCoMo R@5 | ConvoMem | LLM in Retrieval | Latency |
+|:--|:--|:--|:--|:--|:--|
+| **ERINYS** | **100.0%** | **94.0%** | **97.6%** | **❌ None** | **~10 ms** |
+| MemPalace (raw) | 96.6% | 88.9% (R@10) | 92.9% | ❌ None | — |
+| MemPalace (+ LLM rerank) | 100%† | 100%‡ | — | ✅ Haiku/Sonnet | seconds |
+| Supermemory ASMR | ~99% *(QA acc)* | — | — | ✅ Multi-agent | seconds |
+| Mastra | 94.87% *(QA acc)* | — | — | ✅ GPT-5-mini | — |
+| Mem0 | — | — | 30-45% | ✅ LLM extract | — |
 
-If you want to compare:
-- **MemPalace** ([benchmarks](https://github.com/mempalace/mempalace/blob/develop/benchmarks/BENCHMARKS.md)): 96.6% R@5 raw, 100% with LLM rerank (LongMemEval-S, same split)
-- **Supermemory ASMR**: ~99% QA accuracy (different metric)
-- **Mastra**: 94.87% QA accuracy (different metric)
-- **Mem0**: 30-45% on ConvoMem (same benchmark, different metric definition)
+† MemPalace 100% on LongMemEval-S involved [3 question-specific algorithm patches + LLM reranking](https://github.com/mempalace/mempalace/blob/develop/benchmarks/BENCHMARKS.md). Held-out score: 98.4%.
+‡ MemPalace 100% on LoCoMo used `top_k=50`, which exceeds the session count per conversation (structurally guaranteed).
 
-Run the same benchmark. Use the same metric. Compare the numbers yourself.
+All MemPalace numbers are self-reported from their repository. Supermemory/Mastra numbers are from their respective publications. Dash (—) means not published or not evaluated on that benchmark.
 
 ---
 
