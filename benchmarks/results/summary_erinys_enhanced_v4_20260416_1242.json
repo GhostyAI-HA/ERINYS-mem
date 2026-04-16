@@ -1,0 +1,89 @@
+{
+  "mode": "enhanced_v4",
+  "top_k": 10,
+  "total_questions": 500,
+  "overall": {
+    "R@5": 99.0,
+    "R@10": 99.4,
+    "NDCG@5": 0.9194288544254041,
+    "NDCG@10": 0.934886947446557
+  },
+  "per_category": {
+    "knowledge-update": {
+      "count": 78,
+      "R@5": 100.0,
+      "R@10": 100.0,
+      "NDCG@5": 0.8879298423715222,
+      "NDCG@10": 0.9158076613457945
+    },
+    "multi-session": {
+      "count": 133,
+      "R@5": 99.24812030075188,
+      "R@10": 100.0,
+      "NDCG@5": 0.9389193020542042,
+      "NDCG@10": 0.9546610250115941
+    },
+    "single-session-assistant": {
+      "count": 56,
+      "R@5": 100.0,
+      "R@10": 100.0,
+      "NDCG@5": 0.9934094598852046,
+      "NDCG@10": 0.9934094598852046
+    },
+    "single-session-preference": {
+      "count": 30,
+      "R@5": 93.33333333333333,
+      "R@10": 96.66666666666667,
+      "NDCG@5": 0.8282394944357865,
+      "NDCG@10": 0.8401130673393873
+    },
+    "single-session-user": {
+      "count": 70,
+      "R@5": 100.0,
+      "R@10": 100.0,
+      "NDCG@5": 0.9432549713047178,
+      "NDCG@10": 0.9432549713047178
+    },
+    "temporal-reasoning": {
+      "count": 133,
+      "R@5": 98.49624060150376,
+      "R@10": 98.49624060150376,
+      "NDCG@5": 0.8952907500491644,
+      "NDCG@10": 0.9186345116291816
+    }
+  },
+  "timing": {
+    "embed_total_s": 15.8,
+    "search_total_s": 4.3,
+    "avg_embed_per_q_s": 0.03,
+    "avg_search_per_q_ms": 8.6
+  },
+  "misses_at_5": [
+    {
+      "question_id": "505af2f5",
+      "question_type": "single-session-preference",
+      "question": "I was thinking of trying a new coffee creamer recipe. Any recommendations?"
+    },
+    {
+      "question_id": "d6233ab6",
+      "question_type": "single-session-preference",
+      "question": "I've been feeling nostalgic lately. Do you think it would be a good idea to attend my high school reunion?"
+    },
+    {
+      "question_id": "8e91e7d9",
+      "question_type": "multi-session",
+      "question": "What is the total number of siblings I have?"
+    },
+    {
+      "question_id": "eac54add",
+      "question_type": "temporal-reasoning",
+      "question": "What was the significant buisiness milestone I mentioned four weeks ago?"
+    },
+    {
+      "question_id": "gpt4_8279ba03",
+      "question_type": "temporal-reasoning",
+      "question": "What kitchen appliance did I buy 10 days ago?"
+    }
+  ],
+  "total_time_s": 21.1
+}

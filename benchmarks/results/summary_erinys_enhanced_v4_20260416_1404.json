@@ -1,0 +1,79 @@
+{
+  "mode": "enhanced_v4",
+  "top_k": 10,
+  "total_questions": 500,
+  "overall": {
+    "R@5": 99.4,
+    "R@10": 99.6,
+    "NDCG@5": 0.9422152196379998,
+    "NDCG@10": 0.9518217522826803
+  },
+  "per_category": {
+    "knowledge-update": {
+      "count": 78,
+      "R@5": 100.0,
+      "R@10": 100.0,
+      "NDCG@5": 0.9861502665275409,
+      "NDCG@10": 0.9885166216144585
+    },
+    "multi-session": {
+      "count": 133,
+      "R@5": 100.0,
+      "R@10": 100.0,
+      "NDCG@5": 0.9371930203308212,
+      "NDCG@10": 0.9526128213878605
+    },
+    "single-session-assistant": {
+      "count": 56,
+      "R@5": 100.0,
+      "R@10": 100.0,
+      "NDCG@5": 0.9766524297360055,
+      "NDCG@10": 0.9766524297360055
+    },
+    "single-session-preference": {
+      "count": 30,
+      "R@5": 96.66666666666667,
+      "R@10": 96.66666666666667,
+      "NDCG@5": 0.8651465190786408,
+      "NDCG@10": 0.8651465190786408
+    },
+    "single-session-user": {
+      "count": 70,
+      "R@5": 100.0,
+      "R@10": 100.0,
+      "NDCG@5": 0.9646245573469404,
+      "NDCG@10": 0.9646245573469404
+    },
+    "temporal-reasoning": {
+      "count": 133,
+      "R@5": 98.49624060150376,
+      "R@10": 99.24812030075188,
+      "NDCG@5": 0.9125606516841438,
+      "NDCG@10": 0.9318678478117715
+    }
+  },
+  "timing": {
+    "embed_total_s": 10.5,
+    "search_total_s": 6.0,
+    "avg_embed_per_q_s": 0.02,
+    "avg_search_per_q_ms": 12.1
+  },
+  "misses_at_5": [
+    {
+      "question_id": "d6233ab6",
+      "question_type": "single-session-preference",
+      "question": "I've been feeling nostalgic lately. Do you think it would be a good idea to attend my high school reunion?"
+    },
+    {
+      "question_id": "eac54add",
+      "question_type": "temporal-reasoning",
+      "question": "What was the significant buisiness milestone I mentioned four weeks ago?"
+    },
+    {
+      "question_id": "gpt4_8279ba03",
+      "question_type": "temporal-reasoning",
+      "question": "What kitchen appliance did I buy 10 days ago?"
+    }
+  ],
+  "total_time_s": 17.6
+}

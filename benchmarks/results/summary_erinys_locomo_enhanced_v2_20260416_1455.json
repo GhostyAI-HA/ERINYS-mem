@@ -1,0 +1,87 @@
+{
+  "benchmark": "LoCoMo",
+  "mode": "enhanced_v2",
+  "top_k": 10,
+  "total_questions": 50,
+  "overall": {
+    "R@5": 84.0,
+    "R@10": 96.0,
+    "NDCG@5": 0.6472905945020494,
+    "NDCG@10": 0.6981617289403297
+  },
+  "per_category": {
+    "single-hop": {
+      "count": 20,
+      "R@5": 85.0,
+      "R@10": 100.0,
+      "NDCG@5": 0.5308633290904465,
+      "NDCG@10": 0.6077908953247931
+    },
+    "temporal": {
+      "count": 24,
+      "R@5": 87.5,
+      "R@10": 100.0,
+      "NDCG@5": 0.7949745363521187,
+      "NDCG@10": 0.8368497612365805
+    },
+    "temporal-inference": {
+      "count": 6,
+      "R@5": 66.66666666666666,
+      "R@10": 66.66666666666666,
+      "NDCG@5": 0.44464571180711493,
+      "NDCG@10": 0.44464571180711493
+    }
+  },
+  "timing": {
+    "ingest_total_s": 1.1,
+    "search_total_s": 0.2,
+    "avg_search_per_q_ms": 4.8
+  },
+  "misses_at_5": [
+    {
+      "conv_id": "conv-26",
+      "category": "temporal-inference",
+      "question": "What fields would Caroline be likely to pursue in her educaton?"
+    },
+    {
+      "conv_id": "conv-26",
+      "category": "single-hop",
+      "question": "What is Caroline's identity?"
+    },
+    {
+      "conv_id": "conv-26",
+      "category": "temporal",
+      "question": "When is Melanie planning on going camping?"
+    },
+    {
+      "conv_id": "conv-26",
+      "category": "temporal",
+      "question": "How long has Caroline had her current group of friends for?"
+    },
+    {
+      "conv_id": "conv-26",
+      "category": "temporal",
+      "question": "When did Caroline have a picnic?"
+    },
+    {
+      "conv_id": "conv-26",
+      "category": "single-hop",
+      "question": "What events has Caroline participated in to help children?"
+    },
+    {
+      "conv_id": "conv-26",
+      "category": "single-hop",
+      "question": "What did Melanie paint recently?"
+    },
+    {
+      "conv_id": "conv-26",
+      "category": "temporal-inference",
+      "question": "What would Caroline's political leaning likely be?"
+    }
+  ],
+  "comparison": {
+    "mempalace_raw_top10_R10": "88.9% (hybrid v5, no LLM)",
+    "mempalace_rerank_top50_R10": "100% (trivial: top-k > sessions)"
+  },
+  "total_time_s": 1.3
+}

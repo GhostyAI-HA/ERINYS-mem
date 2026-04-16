@@ -1,0 +1,79 @@
+{
+  "mode": "enhanced_v4",
+  "top_k": 10,
+  "total_questions": 500,
+  "overall": {
+    "R@5": 99.4,
+    "R@10": 99.8,
+    "NDCG@5": 0.9405773173639008,
+    "NDCG@10": 0.9517689510184129
+  },
+  "per_category": {
+    "knowledge-update": {
+      "count": 78,
+      "R@5": 100.0,
+      "R@10": 100.0,
+      "NDCG@5": 0.981190615152739,
+      "NDCG@10": 0.9835569702396566
+    },
+    "multi-session": {
+      "count": 133,
+      "R@5": 100.0,
+      "R@10": 100.0,
+      "NDCG@5": 0.934970703878442,
+      "NDCG@10": 0.9536712817611029
+    },
+    "single-session-assistant": {
+      "count": 56,
+      "R@5": 100.0,
+      "R@10": 100.0,
+      "NDCG@5": 0.9700618896212101,
+      "NDCG@10": 0.9700618896212101
+    },
+    "single-session-preference": {
+      "count": 30,
+      "R@5": 96.66666666666667,
+      "R@10": 100.0,
+      "NDCG@5": 0.8441155272929256,
+      "NDCG@10": 0.8559891001965262
+    },
+    "single-session-user": {
+      "count": 70,
+      "R@5": 100.0,
+      "R@10": 100.0,
+      "NDCG@5": 0.9732989964795922,
+      "NDCG@10": 0.9732989964795922
+    },
+    "temporal-reasoning": {
+      "count": 133,
+      "R@5": 98.49624060150376,
+      "R@10": 99.24812030075188,
+      "NDCG@5": 0.9144874112259926,
+      "NDCG@10": 0.9337946073536203
+    }
+  },
+  "timing": {
+    "embed_total_s": 10.6,
+    "search_total_s": 5.8,
+    "avg_embed_per_q_s": 0.02,
+    "avg_search_per_q_ms": 11.6
+  },
+  "misses_at_5": [
+    {
+      "question_id": "1c0ddc50",
+      "question_type": "single-session-preference",
+      "question": "Can you suggest some activities I can do during my commute to work?"
+    },
+    {
+      "question_id": "eac54add",
+      "question_type": "temporal-reasoning",
+      "question": "What was the significant buisiness milestone I mentioned four weeks ago?"
+    },
+    {
+      "question_id": "gpt4_8279ba03",
+      "question_type": "temporal-reasoning",
+      "question": "What kitchen appliance did I buy 10 days ago?"
+    }
+  ],
+  "total_time_s": 17.4
+}

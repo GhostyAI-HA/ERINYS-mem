@@ -1,0 +1,104 @@
+{
+  "mode": "enhanced_v2",
+  "top_k": 10,
+  "total_questions": 500,
+  "overall": {
+    "R@5": 98.4,
+    "R@10": 99.2,
+    "NDCG@5": 0.919730773037118,
+    "NDCG@10": 0.9330519059067742
+  },
+  "per_category": {
+    "knowledge-update": {
+      "count": 78,
+      "R@5": 100.0,
+      "R@10": 100.0,
+      "NDCG@5": 0.9807570480909761,
+      "NDCG@10": 0.9807570480909761
+    },
+    "multi-session": {
+      "count": 133,
+      "R@5": 99.24812030075188,
+      "R@10": 100.0,
+      "NDCG@5": 0.9005851122073768,
+      "NDCG@10": 0.9286996886695414
+    },
+    "single-session-assistant": {
+      "count": 56,
+      "R@5": 100.0,
+      "R@10": 100.0,
+      "NDCG@5": 0.9934094598852046,
+      "NDCG@10": 0.9934094598852046
+    },
+    "single-session-preference": {
+      "count": 30,
+      "R@5": 90.0,
+      "R@10": 93.33333333333333,
+      "NDCG@5": 0.7964263086904791,
+      "NDCG@10": 0.8082998815940798
+    },
+    "single-session-user": {
+      "count": 70,
+      "R@5": 100.0,
+      "R@10": 100.0,
+      "NDCG@5": 0.9516499356143991,
+      "NDCG@10": 0.9516499356143991
+    },
+    "temporal-reasoning": {
+      "count": 133,
+      "R@5": 96.99248120300751,
+      "R@10": 98.49624060150376,
+      "NDCG@5": 0.8830774611773531,
+      "NDCG@10": 0.9023640820664671
+    }
+  },
+  "timing": {
+    "embed_total_s": 761.7,
+    "search_total_s": 5.9,
+    "avg_embed_per_q_s": 1.52,
+    "avg_search_per_q_ms": 11.7
+  },
+  "misses_at_5": [
+    {
+      "question_id": "75832dbd",
+      "question_type": "single-session-preference",
+      "question": "Can you recommend some recent publications or conferences that I might find interesting?"
+    },
+    {
+      "question_id": "06f04340",
+      "question_type": "single-session-preference",
+      "question": "What should I serve for dinner this weekend with my homegrown ingredients?"
+    },
+    {
+      "question_id": "d6233ab6",
+      "question_type": "single-session-preference",
+      "question": "I've been feeling nostalgic lately. Do you think it would be a good idea to attend my high school reunion?"
+    },
+    {
+      "question_id": "c18a7dc8",
+      "question_type": "multi-session",
+      "question": "How many years older am I than when I graduated from college?"
+    },
+    {
+      "question_id": "gpt4_4929293b",
+      "question_type": "temporal-reasoning",
+      "question": "What was the the life event of one of my relatives that I participated in a week ago?"
+    },
+    {
+      "question_id": "gpt4_468eb064",
+      "question_type": "temporal-reasoning",
+      "question": "Who did I meet with during the lunch last Tuesday?"
+    },
+    {
+      "question_id": "eac54add",
+      "question_type": "temporal-reasoning",
+      "question": "What was the significant buisiness milestone I mentioned four weeks ago?"
+    },
+    {
+      "question_id": "gpt4_8279ba03",
+      "question_type": "temporal-reasoning",
+      "question": "What kitchen appliance did I buy 10 days ago?"
+    }
+  ],
+  "total_time_s": 768.0
+}

@@ -1,0 +1,124 @@
+{
+  "mode": "enhanced_v2",
+  "top_k": 10,
+  "total_questions": 500,
+  "overall": {
+    "R@5": 97.6,
+    "R@10": 99.0,
+    "NDCG@5": 0.9029372072624048,
+    "NDCG@10": 0.9193029000706017
+  },
+  "per_category": {
+    "knowledge-update": {
+      "count": 78,
+      "R@5": 100.0,
+      "R@10": 100.0,
+      "NDCG@5": 0.9853115437404991,
+      "NDCG@10": 0.9853115437404991
+    },
+    "multi-session": {
+      "count": 133,
+      "R@5": 97.74436090225564,
+      "R@10": 99.24812030075188,
+      "NDCG@5": 0.8783858212733918,
+      "NDCG@10": 0.9118599550775287
+    },
+    "single-session-assistant": {
+      "count": 56,
+      "R@5": 100.0,
+      "R@10": 100.0,
+      "NDCG@5": 0.9910714285714286,
+      "NDCG@10": 0.9910714285714286
+    },
+    "single-session-preference": {
+      "count": 30,
+      "R@5": 86.66666666666667,
+      "R@10": 96.66666666666667,
+      "NDCG@5": 0.6711092684604647,
+      "NDCG@10": 0.7041282856639761
+    },
+    "single-session-user": {
+      "count": 70,
+      "R@5": 98.57142857142858,
+      "R@10": 100.0,
+      "NDCG@5": 0.9556112751530623,
+      "NDCG@10": 0.9601179162500015
+    },
+    "temporal-reasoning": {
+      "count": 133,
+      "R@5": 96.99248120300751,
+      "R@10": 97.74436090225564,
+      "NDCG@5": 0.866638508838752,
+      "NDCG@10": 0.8848697209835431
+    }
+  },
+  "timing": {
+    "embed_total_s": 770.2,
+    "search_total_s": 6.0,
+    "avg_embed_per_q_s": 1.54,
+    "avg_search_per_q_ms": 12.0
+  },
+  "misses_at_5": [
+    {
+      "question_id": "ccb36322",
+      "question_type": "single-session-user",
+      "question": "What is the name of the music streaming service have I been using lately?"
+    },
+    {
+      "question_id": "gpt4_f2262a51",
+      "question_type": "multi-session",
+      "question": "How many different doctors did I visit?"
+    },
+    {
+      "question_id": "bf659f65",
+      "question_type": "multi-session",
+      "question": "How many music albums or EPs have I purchased or downloaded?"
+    },
+    {
+      "question_id": "75832dbd",
+      "question_type": "single-session-preference",
+      "question": "Can you recommend some recent publications or conferences that I might find interesting?"
+    },
+    {
+      "question_id": "06f04340",
+      "question_type": "single-session-preference",
+      "question": "What should I serve for dinner this weekend with my homegrown ingredients?"
+    },
+    {
+      "question_id": "d6233ab6",
+      "question_type": "single-session-preference",
+      "question": "I've been feeling nostalgic lately. Do you think it would be a good idea to attend my high school reunion?"
+    },
+    {
+      "question_id": "1c0ddc50",
+      "question_type": "single-session-preference",
+      "question": "Can you suggest some activities I can do during my commute to work?"
+    },
+    {
+      "question_id": "c18a7dc8",
+      "question_type": "multi-session",
+      "question": "How many years older am I than when I graduated from college?"
+    },
+    {
+      "question_id": "gpt4_4929293b",
+      "question_type": "temporal-reasoning",
+      "question": "What was the the life event of one of my relatives that I participated in a week ago?"
+    },
+    {
+      "question_id": "gpt4_468eb064",
+      "question_type": "temporal-reasoning",
+      "question": "Who did I meet with during the lunch last Tuesday?"
+    },
+    {
+      "question_id": "eac54add",
+      "question_type": "temporal-reasoning",
+      "question": "What was the significant buisiness milestone I mentioned four weeks ago?"
+    },
+    {
+      "question_id": "gpt4_8279ba03",
+      "question_type": "temporal-reasoning",
+      "question": "What kitchen appliance did I buy 10 days ago?"
+    }
+  ],
+  "total_time_s": 776.7
+}

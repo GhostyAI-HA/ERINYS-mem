@@ -1,0 +1,321 @@
+{
+  "mode": "enhanced_v2_fulldb",
+  "top_k": 10,
+  "total_questions": 500,
+  "overall": {
+    "R@5": 89.8,
+    "R@10": 89.8,
+    "NDCG@5": 0.8274987219211182,
+    "NDCG@10": 0.8271241352405176
+  },
+  "per_category": {
+    "knowledge-update": {
+      "count": 78,
+      "R@5": 97.43589743589743,
+      "R@10": 97.43589743589743,
+      "NDCG@5": 0.9386121940834153,
+      "NDCG@10": 0.9386121940834153
+    },
+    "multi-session": {
+      "count": 133,
+      "R@5": 94.73684210526315,
+      "R@10": 94.73684210526315,
+      "NDCG@5": 0.7957006011176841,
+      "NDCG@10": 0.7957006011176841
+    },
+    "single-session-assistant": {
+      "count": 56,
+      "R@5": 100.0,
+      "R@10": 100.0,
+      "NDCG@5": 1.0,
+      "NDCG@10": 1.0
+    },
+    "single-session-preference": {
+      "count": 30,
+      "R@5": 60.0,
+      "R@10": 60.0,
+      "NDCG@5": 0.5753953169047639,
+      "NDCG@10": 0.5753953169047639
+    },
+    "single-session-user": {
+      "count": 70,
+      "R@5": 84.28571428571429,
+      "R@10": 84.28571428571429,
+      "NDCG@5": 0.8323122786734702,
+      "NDCG@10": 0.8323122786734702
+    },
+    "temporal-reasoning": {
+      "count": 133,
+      "R@5": 85.71428571428571,
+      "R@10": 85.71428571428571,
+      "NDCG@5": 0.7758324124745479,
+      "NDCG@10": 0.7744241918707865
+    }
+  },
+  "timing": {
+    "embed_total_s": 0.0,
+    "search_total_s": 163.5,
+    "avg_embed_per_q_s": 0.0,
+    "avg_search_per_q_ms": 326.9,
+    "db_build_s": 8.1,
+    "unique_sessions": 19195
+  },
+  "misses_at_5": [
+    {
+      "question_id": "e47becba",
+      "question_type": "single-session-user",
+      "question": "What degree did I graduate with?"
+    },
+    {
+      "question_id": "118b2229",
+      "question_type": "single-session-user",
+      "question": "How long is my daily commute to work?"
+    },
+    {
+      "question_id": "5d3d2817",
+      "question_type": "single-session-user",
+      "question": "What was my previous occupation?"
+    },
+    {
+      "question_id": "726462e0",
+      "question_type": "single-session-user",
+      "question": "What was the discount I got on my first purchase from the new clothing brand?"
+    },
+    {
+      "question_id": "b86304ba",
+      "question_type": "single-session-user",
+      "question": "How much is the painting of a sunset worth in terms of the amount I paid for it?"
+    },
+    {
+      "question_id": "60d45044",
+      "question_type": "single-session-user",
+      "question": "What type of rice is my favorite?"
+    },
+    {
+      "question_id": "577d4d32",
+      "question_type": "single-session-user",
+      "question": "What time do I stop checking work emails and messages?"
+    },
+    {
+      "question_id": "ccb36322",
+      "question_type": "single-session-user",
+      "question": "What is the name of the music streaming service have I been using lately?"
+    },
+    {
+      "question_id": "0862e8bf_abs",
+      "question_type": "single-session-user",
+      "question": "What is the name of my hamster?"
+    },
+    {
+      "question_id": "29f2956b_abs",
+      "question_type": "single-session-user",
+      "question": "How much time do I dedicate to practicing violin every day?"
+    },
+    {
+      "question_id": "f4f1d8a4_abs",
+      "question_type": "single-session-user",
+      "question": "What did my dad gave me as a birthday gift?"
+    },
+    {
+      "question_id": "6d550036",
+      "question_type": "multi-session",
+      "question": "How many projects have I led or am currently leading?"
+    },
+    {
+      "question_id": "10d9b85a",
+      "question_type": "multi-session",
+      "question": "How many days did I spend attending workshops, lectures, and conferences in April?"
+    },
+    {
+      "question_id": "60bf93ed_abs",
+      "question_type": "multi-session",
+      "question": "How many days did it take for my iPad case to arrive after I bought it?"
+    },
+    {
+      "question_id": "75832dbd",
+      "question_type": "single-session-preference",
+      "question": "Can you recommend some recent publications or conferences that I might find interesting?"
+    },
+    {
+      "question_id": "35a27287",
+      "question_type": "single-session-preference",
+      "question": "Can you recommend some interesting cultural events happening around me this weekend?"
+    },
+    {
+      "question_id": "32260d93",
+      "question_type": "single-session-preference",
+      "question": "Can you recommend a show or movie for me to watch tonight?"
+    },
+    {
+      "question_id": "195a1a1b",
+      "question_type": "single-session-preference",
+      "question": "Can you suggest some activities that I can do in the evening?"
+    },
+    {
+      "question_id": "06f04340",
+      "question_type": "single-session-preference",
+      "question": "What should I serve for dinner this weekend with my homegrown ingredients?"
+    },
+    {
+      "question_id": "6b7dfb22",
+      "question_type": "single-session-preference",
+      "question": "I've been feeling a bit stuck with my paintings lately. Do you have any ideas on how I can find new inspiration?"
+    },
+    {
+      "question_id": "09d032c9",
+      "question_type": "single-session-preference",
+      "question": "I've been having trouble with the battery life on my phone lately. Any tips?"
+    },
+    {
+      "question_id": "38146c39",
+      "question_type": "single-session-preference",
+      "question": "I've been feeling like my chocolate chip cookies need something extra. Any advice?"
+    },
+    {
+      "question_id": "75f70248",
+      "question_type": "single-session-preference",
+      "question": "I've been sneezing quite a bit lately. Do you think it might be my living room?"
+    },
+    {
+      "question_id": "d6233ab6",
+      "question_type": "single-session-preference",
+      "question": "I've been feeling nostalgic lately. Do you think it would be a good idea to attend my high school reunion?"
+    },
+    {
+      "question_id": "07b6f563",
+      "question_type": "single-session-preference",
+      "question": "Can you suggest some useful accessories for my phone?"
+    },
+    {
+      "question_id": "1c0ddc50",
+      "question_type": "single-session-preference",
+      "question": "Can you suggest some activities I can do during my commute to work?"
+    },
+    {
+      "question_id": "92a0aa75",
+      "question_type": "multi-session",
+      "question": "How long have I been working in my current role?"
+    },
+    {
+      "question_id": "c18a7dc8",
+      "question_type": "multi-session",
+      "question": "How many years older am I than when I graduated from college?"
+    },
+    {
+      "question_id": "8e91e7d9",
+      "question_type": "multi-session",
+      "question": "What is the total number of siblings I have?"
+    },
+    {
+      "question_id": "a96c20ee_abs",
+      "question_type": "multi-session",
+      "question": "At which university did I present a poster for my undergrad course research project?"
+    },
+    {
+      "question_id": "gpt4_7f6b06db",
+      "question_type": "temporal-reasoning",
+      "question": "What is the order of the three trips I took in the past three months, from earliest to latest?"
+    },
+    {
+      "question_id": "gpt4_e061b84f",
+      "question_type": "temporal-reasoning",
+      "question": "What is the order of the three sports events I participated in during the past month, from earliest to latest?"
+    },
+    {
+      "question_id": "gpt4_21adecb5",
+      "question_type": "temporal-reasoning",
+      "question": "How many months passed between the completion of my undergraduate degree and the submission of my master's thesis?"
+    },
+    {
+      "question_id": "gpt4_e061b84g",
+      "question_type": "temporal-reasoning",
+      "question": "I mentioned participating in a sports event two weeks ago. What was the event?"
+    },
+    {
+      "question_id": "71017277",
+      "question_type": "temporal-reasoning",
+      "question": "I received a piece of jewelry last Saturday from whom?"
+    },
+    {
+      "question_id": "b46e15ee",
+      "question_type": "temporal-reasoning",
+      "question": "What charity event did I participate in a month ago?"
+    },
+    {
+      "question_id": "gpt4_1e4a8aec",
+      "question_type": "temporal-reasoning",
+      "question": "What gardening-related activity did I do two weeks ago?"
+    },
+    {
+      "question_id": "gpt4_59149c78",
+      "question_type": "temporal-reasoning",
+      "question": "I mentioned that I participated in an art-related event two weeks ago. Where was that event held at?"
+    },
+    {
+      "question_id": "gpt4_4929293b",
+      "question_type": "temporal-reasoning",
+      "question": "What was the the life event of one of my relatives that I participated in a week ago?"
+    },
+    {
+      "question_id": "gpt4_468eb064",
+      "question_type": "temporal-reasoning",
+      "question": "Who did I meet with during the lunch last Tuesday?"
+    },
+    {
+      "question_id": "9a707b82",
+      "question_type": "temporal-reasoning",
+      "question": "I mentioned cooking something for my friend a couple of days ago. What was it?"
+    },
+    {
+      "question_id": "eac54add",
+      "question_type": "temporal-reasoning",
+      "question": "What was the significant buisiness milestone I mentioned four weeks ago?"
+    },
+    {
+      "question_id": "4dfccbf8",
+      "question_type": "temporal-reasoning",
+      "question": "What did I do with Rachel on the Wednesday two months ago?"
+    },
+    {
+      "question_id": "6e984302",
+      "question_type": "temporal-reasoning",
+      "question": "I mentioned an investment for a competition four weeks ago? What did I buy?"
+    },
+    {
+      "question_id": "gpt4_8279ba03",
+      "question_type": "temporal-reasoning",
+      "question": "What kitchen appliance did I buy 10 days ago?"
+    },
+    {
+      "question_id": "gpt4_b5700ca0",
+      "question_type": "temporal-reasoning",
+      "question": "Where did I attend the religious activity last week?"
+    },
+    {
+      "question_id": "gpt4_68e94288",
+      "question_type": "temporal-reasoning",
+      "question": "What was the social media activity I participated 5 days ago?"
+    },
+    {
+      "question_id": "gpt4_5438fa52",
+      "question_type": "temporal-reasoning",
+      "question": "Which event happened first, my attendance at a cultural festival or the start of my Spanish classes?"
+    },
+    {
+      "question_id": "8c18457d",
+      "question_type": "temporal-reasoning",
+      "question": "How many days had passed between the day I bought a gift for my brother's graduation ceremony and the day I bought a birthday gift for my best friend?"
+    },
+    {
+      "question_id": "945e3d21",
+      "question_type": "knowledge-update",
+      "question": "How often do I attend yoga classes to help with my anxiety?"
+    },
+    {
+      "question_id": "6aeb4375_abs",
+      "question_type": "knowledge-update",
+      "question": "How many Italian restaurants have I tried in my city?"
+    }
+  ],
+  "total_time_s": 171.7
+}

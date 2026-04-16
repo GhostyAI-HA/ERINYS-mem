@@ -1,0 +1,44 @@
+{
+  "mode": "rrf",
+  "top_k": 10,
+  "total_questions": 10,
+  "overall": {
+    "R@5": 70.0,
+    "R@10": 90.0,
+    "NDCG@5": 0.6261859507142915,
+    "NDCG@10": 0.6919096689914919
+  },
+  "per_category": {
+    "single-session-user": {
+      "count": 10,
+      "R@5": 70.0,
+      "R@10": 90.0,
+      "NDCG@5": 0.6261859507142915,
+      "NDCG@10": 0.6919096689914919
+    }
+  },
+  "timing": {
+    "embed_total_s": 15.4,
+    "search_total_s": 0.0,
+    "avg_embed_per_q_s": 1.54,
+    "avg_search_per_q_ms": 3.5
+  },
+  "misses_at_5": [
+    {
+      "question_id": "e47becba",
+      "question_type": "single-session-user",
+      "question": "What degree did I graduate with?"
+    },
+    {
+      "question_id": "118b2229",
+      "question_type": "single-session-user",
+      "question": "How long is my daily commute to work?"
+    },
+    {
+      "question_id": "1e043500",
+      "question_type": "single-session-user",
+      "question": "What is the name of the playlist I created on Spotify?"
+    }
+  ],
+  "total_time_s": 15.4
+}

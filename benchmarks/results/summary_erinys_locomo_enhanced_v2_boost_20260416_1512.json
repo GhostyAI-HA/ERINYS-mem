@@ -1,0 +1,72 @@
+{
+  "benchmark": "LoCoMo",
+  "mode": "enhanced_v2_boost",
+  "top_k": 10,
+  "total_questions": 50,
+  "overall": {
+    "R@5": 90.0,
+    "R@10": 100.0,
+    "NDCG@5": 0.6617700675252383,
+    "NDCG@10": 0.7375860934326853
+  },
+  "per_category": {
+    "single-hop": {
+      "count": 20,
+      "R@5": 85.0,
+      "R@10": 100.0,
+      "NDCG@5": 0.520211297013623,
+      "NDCG@10": 0.6677110819587714
+    },
+    "temporal": {
+      "count": 24,
+      "R@5": 95.83333333333334,
+      "R@10": 100.0,
+      "NDCG@5": 0.8248926928647881,
+      "NDCG@10": 0.8369370606280334
+    },
+    "temporal-inference": {
+      "count": 6,
+      "R@5": 83.33333333333334,
+      "R@10": 100.0,
+      "NDCG@5": 0.48114213453909027,
+      "NDCG@10": 0.5730989295643398
+    }
+  },
+  "timing": {
+    "ingest_total_s": 1.3,
+    "search_total_s": 0.4,
+    "avg_search_per_q_ms": 7.6
+  },
+  "misses_at_5": [
+    {
+      "conv_id": "conv-26",
+      "category": "single-hop",
+      "question": "What is Caroline's identity?"
+    },
+    {
+      "conv_id": "conv-26",
+      "category": "temporal",
+      "question": "When is Melanie planning on going camping?"
+    },
+    {
+      "conv_id": "conv-26",
+      "category": "single-hop",
+      "question": "What events has Caroline participated in to help children?"
+    },
+    {
+      "conv_id": "conv-26",
+      "category": "single-hop",
+      "question": "What did Melanie paint recently?"
+    },
+    {
+      "conv_id": "conv-26",
+      "category": "temporal-inference",
+      "question": "What would Caroline's political leaning likely be?"
+    }
+  ],
+  "comparison": {
+    "mempalace_raw_top10_R10": "88.9% (hybrid v5, no LLM)",
+    "mempalace_rerank_top50_R10": "100% (trivial: top-k > sessions)"
+  },
+  "total_time_s": 1.7
+}

@@ -1,0 +1,586 @@
+{
+  "benchmark": "LoCoMo",
+  "mode": "enhanced_v2_boost",
+  "top_k": 10,
+  "total_questions": 1982,
+  "overall": {
+    "R@5": 94.70232088799193,
+    "R@10": 98.38546922300706,
+    "NDCG@5": 0.8312881210849749,
+    "NDCG@10": 0.85247720758463
+  },
+  "per_category": {
+    "adversarial": {
+      "count": 446,
+      "R@5": 96.41255605381166,
+      "R@10": 99.32735426008968,
+      "NDCG@5": 0.8907618252033684,
+      "NDCG@10": 0.9003510249288321
+    },
+    "open-domain": {
+      "count": 841,
+      "R@5": 96.6706302021403,
+      "R@10": 98.92984542211653,
+      "NDCG@5": 0.8905952122222757,
+      "NDCG@10": 0.89817644834039
+    },
+    "single-hop": {
+      "count": 282,
+      "R@5": 91.13475177304964,
+      "R@10": 97.16312056737588,
+      "NDCG@5": 0.5970465584941642,
+      "NDCG@10": 0.6741474441248225
+    },
+    "temporal": {
+      "count": 321,
+      "R@5": 96.57320872274143,
+      "R@10": 99.37694704049844,
+      "NDCG@5": 0.889508113940286,
+      "NDCG@10": 0.900873621075427
+    },
+    "temporal-inference": {
+      "count": 92,
+      "R@5": 72.82608695652173,
+      "R@10": 89.13043478260869,
+      "NDCG@5": 0.5156899391369356,
+      "NDCG@10": 0.580400691867365
+    }
+  },
+  "timing": {
+    "ingest_total_s": 14.4,
+    "search_total_s": 16.2,
+    "avg_search_per_q_ms": 8.2
+  },
+  "misses_at_5": [
+    {
+      "conv_id": "conv-26",
+      "category": "temporal-inference",
+      "question": "What fields would Caroline be likely to pursue in her educaton?"
+    },
+    {
+      "conv_id": "conv-26",
+      "category": "single-hop",
+      "question": "What is Caroline's identity?"
+    },
+    {
+      "conv_id": "conv-26",
+      "category": "temporal",
+      "question": "When is Melanie planning on going camping?"
+    },
+    {
+      "conv_id": "conv-26",
+      "category": "single-hop",
+      "question": "What events has Caroline participated in to help children?"
+    },
+    {
+      "conv_id": "conv-26",
+      "category": "single-hop",
+      "question": "What did Melanie paint recently?"
+    },
+    {
+      "conv_id": "conv-26",
+      "category": "temporal-inference",
+      "question": "What would Caroline's political leaning likely be?"
+    },
+    {
+      "conv_id": "conv-26",
+      "category": "temporal-inference",
+      "question": "What personality traits might Melanie say Caroline has?"
+    },
+    {
+      "conv_id": "conv-26",
+      "category": "single-hop",
+      "question": "What transgender-specific events has Caroline attended?"
+    },
+    {
+      "conv_id": "conv-26",
+      "category": "open-domain",
+      "question": "What did Melanie and her family do while camping?"
+    },
+    {
+      "conv_id": "conv-26",
+      "category": "open-domain",
+      "question": "What kind of painting did Caroline share with Melanie on October 13, 2023?"
+    },
+    {
+      "conv_id": "conv-26",
+      "category": "open-domain",
+      "question": "What does Caroline's drawing symbolize for her?"
+    },
+    {
+      "conv_id": "conv-26",
+      "category": "open-domain",
+      "question": "How did Melanie feel about her family supporting her?"
+    },
+    {
+      "conv_id": "conv-30",
+      "category": "open-domain",
+      "question": "How do Jon and Gina both like to destress?"
+    },
+    {
+      "conv_id": "conv-30",
+      "category": "open-domain",
+      "question": "What did Jon say about Gina's progress with her store?"
+    },
+    {
+      "conv_id": "conv-41",
+      "category": "single-hop",
+      "question": "What type of volunteering have John and Maria both done?"
+    },
+    {
+      "conv_id": "conv-41",
+      "category": "temporal-inference",
+      "question": "What might John's financial status be?"
+    },
+    {
+      "conv_id": "conv-41",
+      "category": "temporal-inference",
+      "question": "Would John be considered a patriotic person?"
+    },
+    {
+      "conv_id": "conv-41",
+      "category": "single-hop",
+      "question": "What causes does John feel passionate about supporting?"
+    },
+    {
+      "conv_id": "conv-41",
+      "category": "single-hop",
+      "question": "What shelters does Maria volunteer at?"
+    },
+    {
+      "conv_id": "conv-41",
+      "category": "temporal-inference",
+      "question": "Would John be open to moving to another country?"
+    },
+    {
+      "conv_id": "conv-41",
+      "category": "temporal-inference",
+      "question": "What attributes describe John?"
+    },
+    {
+      "conv_id": "conv-41",
+      "category": "temporal-inference",
+      "question": "What job might Maria pursue in the future?"
+    },
+    {
+      "conv_id": "conv-41",
+      "category": "open-domain",
+      "question": "Who inspired Maria to start volunteering?"
+    },
+    {
+      "conv_id": "conv-41",
+      "category": "open-domain",
+      "question": "What did John receive a certificate for?"
+    },
+    {
+      "conv_id": "conv-41",
+      "category": "open-domain",
+      "question": "What community service did Maria mention that she was involved in on 31 July, 2023?"
+    },
+    {
+      "conv_id": "conv-41",
+      "category": "open-domain",
+      "question": "What is John currently doing as a volunteer in August 2023?"
+    },
+    {
+      "conv_id": "conv-41",
+      "category": "adversarial",
+      "question": "Who inspired John to start volunteering?"
+    },
+    {
+      "conv_id": "conv-41",
+      "category": "adversarial",
+      "question": "What did Maria receive a certificate for?"
+    },
+    {
+      "conv_id": "conv-41",
+      "category": "adversarial",
+      "question": "What did John take away from visiting the orphanage?"
+    },
+    {
+      "conv_id": "conv-42",
+      "category": "temporal-inference",
+      "question": "Is it likely that Nate has friends besides Joanna?"
+    },
+    {
+      "conv_id": "conv-42",
+      "category": "temporal",
+      "question": "When did Joanna plan to go over to Nate's and share recipes?"
+    },
+    {
+      "conv_id": "conv-42",
+      "category": "single-hop",
+      "question": "What recipes has Nate made?"
+    },
+    {
+      "conv_id": "conv-42",
+      "category": "temporal-inference",
+      "question": "What kind of job is Joanna beginning to preform the duties of because of her movie scripts?"
+    },
+    {
+      "conv_id": "conv-42",
+      "category": "temporal-inference",
+      "question": "What state did Nate visit?"
+    },
+    {
+      "conv_id": "conv-42",
+      "category": "open-domain",
+      "question": "What type of ice cream does Joanna mention that Nate makes and is delicious?"
+    },
+    {
+      "conv_id": "conv-42",
+      "category": "open-domain",
+      "question": "What does Joanna do while she writes?"
+    },
+    {
+      "conv_id": "conv-42",
+      "category": "open-domain",
+      "question": "What ingredient did Nate use to make the ice cream lactose-free?"
+    },
+    {
+      "conv_id": "conv-42",
+      "category": "open-domain",
+      "question": "What does Nate want to do when he goes over to Joanna's place?"
+    },
+    {
+      "conv_id": "conv-42",
+      "category": "open-domain",
+      "question": "What did Nate share a photo of as a part of his experimentation in November 2022?"
+    },
+    {
+      "conv_id": "conv-42",
+      "category": "adversarial",
+      "question": "What genre is Joanna's first novella?"
+    },
+    {
+      "conv_id": "conv-43",
+      "category": "temporal-inference",
+      "question": "Would Tim enjoy reading books by C. S. Lewis or John Greene?"
+    },
+    {
+      "conv_id": "conv-43",
+      "category": "single-hop",
+      "question": "What sports does John like besides basketball?"
+    },
+    {
+      "conv_id": "conv-43",
+      "category": "open-domain",
+      "question": "What did John share with the person he skyped about?"
+    },
+    {
+      "conv_id": "conv-43",
+      "category": "open-domain",
+      "question": "Which basketball team does Tim support?"
+    },
+    {
+      "conv_id": "conv-43",
+      "category": "open-domain",
+      "question": "What map does Tim show to his friend John?"
+    },
+    {
+      "conv_id": "conv-43",
+      "category": "adversarial",
+      "question": "What tradition does Tim mention they love during Halloween?"
+    },
+    {
+      "conv_id": "conv-43",
+      "category": "adversarial",
+      "question": "What is one of Tim's favorite crime TV shows, as mentioned on November 11, 2023?"
+    },
+    {
+      "conv_id": "conv-44",
+      "category": "temporal",
+      "question": "Did Andrew have a pet dog during March 2023?"
+    },
+    {
+      "conv_id": "conv-44",
+      "category": "single-hop",
+      "question": "What is a shared frustration regarding dog ownership for Audrey and Andrew?"
+    },
+    {
+      "conv_id": "conv-44",
+      "category": "single-hop",
+      "question": "What are some problems that Andrew faces before he adopted Toby?"
+    },
+    {
+      "conv_id": "conv-44",
+      "category": "single-hop",
+      "question": "What has Andrew done with his dogs?"
+    },
+    {
+      "conv_id": "conv-44",
+      "category": "temporal-inference",
+      "question": "Which US state do Audrey and Andrew potentially live in?"
+    },
+    {
+      "conv_id": "conv-44",
+      "category": "single-hop",
+      "question": "What does Andrew view his pets as?"
+    },
+    {
+      "conv_id": "conv-44",
+      "category": "single-hop",
+      "question": "What does Audrey view her pets as?"
+    },
+    {
+      "conv_id": "conv-44",
+      "category": "temporal-inference",
+      "question": "What is a career that Andrew could potentially pursue with his love for animals and nature?"
+    },
+    {
+      "conv_id": "conv-44",
+      "category": "temporal",
+      "question": "When did Andrew make his dogs a fun indoor area?"
+    },
+    {
+      "conv_id": "conv-44",
+      "category": "open-domain",
+      "question": "How long does Audrey typically walk her dogs for?"
+    },
+    {
+      "conv_id": "conv-44",
+      "category": "adversarial",
+      "question": "How often does Andrew take his dogs for walks?"
+    },
+    {
+      "conv_id": "conv-47",
+      "category": "temporal-inference",
+      "question": "What are John's suspected health problems?"
+    },
+    {
+      "conv_id": "conv-47",
+      "category": "temporal-inference",
+      "question": "Does James live in Connecticut?"
+    },
+    {
+      "conv_id": "conv-47",
+      "category": "temporal-inference",
+      "question": "Was James feeling lonely before meeting Samantha?"
+    },
+    {
+      "conv_id": "conv-47",
+      "category": "single-hop",
+      "question": "What kind of programming-related events has John hosted?"
+    },
+    {
+      "conv_id": "conv-47",
+      "category": "single-hop",
+      "question": "Which of James's family members have visited him in the last year?"
+    },
+    {
+      "conv_id": "conv-48",
+      "category": "single-hop",
+      "question": "How many times has Jolene been to France?"
+    },
+    {
+      "conv_id": "conv-48",
+      "category": "temporal-inference",
+      "question": "Why did Jolene sometimes put off doing yoga?"
+    },
+    {
+      "conv_id": "conv-48",
+      "category": "temporal-inference",
+      "question": "Does Deborah live close to the beach or the mountains?"
+    },
+    {
+      "conv_id": "conv-48",
+      "category": "temporal",
+      "question": "Where did Jolene and her partner spend most of September 2023?"
+    },
+    {
+      "conv_id": "conv-48",
+      "category": "single-hop",
+      "question": "What activities does Deborah pursue besides practicing and teaching yoga?"
+    },
+    {
+      "conv_id": "conv-48",
+      "category": "open-domain",
+      "question": "What did Deb share a photo of, which brought a smile to Jolene's face?"
+    },
+    {
+      "conv_id": "conv-48",
+      "category": "open-domain",
+      "question": "What outdoor activity did Jolene suggest doing together with Deborah?"
+    },
+    {
+      "conv_id": "conv-48",
+      "category": "adversarial",
+      "question": "How does Jolene plan to pursue her dream of climbing mountains?"
+    },
+    {
+      "conv_id": "conv-49",
+      "category": "single-hop",
+      "question": "What kinds of things did Evan have broken?"
+    },
+    {
+      "conv_id": "conv-49",
+      "category": "temporal",
+      "question": "What significant event happened in Sam's life towards the end of summer 2023?"
+    },
+    {
+      "conv_id": "conv-49",
+      "category": "temporal",
+      "question": "Which year did Evan start taking care of his health seriously?"
+    },
+    {
+      "conv_id": "conv-49",
+      "category": "temporal-inference",
+      "question": "How might Evan and Sam's experiences with health and lifestyle changes influence their approach to stress and challenges?"
+    },
+    {
+      "conv_id": "conv-49",
+      "category": "single-hop",
+      "question": "What recurring frustration does Evan experience?"
+    },
+    {
+      "conv_id": "conv-49",
+      "category": "temporal-inference",
+      "question": "What role does nature and the outdoors play in Evan and Sam's mental well-being?"
+    },
+    {
+      "conv_id": "conv-49",
+      "category": "temporal",
+      "question": "Which places in Canada was Evan visiting in July 2023?"
+    },
+    {
+      "conv_id": "conv-49",
+      "category": "single-hop",
+      "question": "Who was injured in Evan's family?"
+    },
+    {
+      "conv_id": "conv-49",
+      "category": "temporal-inference",
+      "question": "What challenges does Sam face in his quest for a healthier lifestyle, and how does he address them?"
+    },
+    {
+      "conv_id": "conv-49",
+      "category": "temporal",
+      "question": "When did Evan and Sam decide to paint together?"
+    },
+    {
+      "conv_id": "conv-49",
+      "category": "temporal-inference",
+      "question": "Which major holiday season conincides with Evan's wedding?"
+    },
+    {
+      "conv_id": "conv-49",
+      "category": "open-domain",
+      "question": "What does the smartwatch help Evan with?"
+    },
+    {
+      "conv_id": "conv-49",
+      "category": "open-domain",
+      "question": "What fun activity did Evan mention doing in July 2023?"
+    },
+    {
+      "conv_id": "conv-49",
+      "category": "open-domain",
+      "question": "What digestive issue did Sam experience lately?"
+    },
+    {
+      "conv_id": "conv-49",
+      "category": "adversarial",
+      "question": "What does the smartwatch help Sam with?"
+    },
+    {
+      "conv_id": "conv-49",
+      "category": "adversarial",
+      "question": "Why did Sam decide to get the bonsai tree?"
+    },
+    {
+      "conv_id": "conv-49",
+      "category": "adversarial",
+      "question": "What digestive issue did Evan experience lately?"
+    },
+    {
+      "conv_id": "conv-49",
+      "category": "adversarial",
+      "question": "What activity hindered Evan's stress and flexibility?"
+    },
+    {
+      "conv_id": "conv-50",
+      "category": "temporal-inference",
+      "question": "Would Calvin enjoy performing at the Hollywood Bowl?"
+    },
+    {
+      "conv_id": "conv-50",
+      "category": "temporal-inference",
+      "question": "Does Calvin wish to become more popular?"
+    },
+    {
+      "conv_id": "conv-50",
+      "category": "single-hop",
+      "question": "What are Dave's hobbies other than fixing cars?"
+    },
+    {
+      "conv_id": "conv-50",
+      "category": "single-hop",
+      "question": "What was the artists Calvin used to listen to when he was a kid?"
+    },
+    {
+      "conv_id": "conv-50",
+      "category": "temporal",
+      "question": "Which city was Calvin at on October 3, 2023?"
+    },
+    {
+      "conv_id": "conv-50",
+      "category": "single-hop",
+      "question": "What shared activities do Dave and Calvin have?"
+    },
+    {
+      "conv_id": "conv-50",
+      "category": "single-hop",
+      "question": "What is Dave's favorite activity?"
+    },
+    {
+      "conv_id": "conv-50",
+      "category": "temporal",
+      "question": "Which hobby did Dave pick up in October 2023?"
+    },
+    {
+      "conv_id": "conv-50",
+      "category": "open-domain",
+      "question": "What is Dave's new business venture as of 1 May, 2023?"
+    },
+    {
+      "conv_id": "conv-50",
+      "category": "open-domain",
+      "question": "What plans do Calvin and Dave have for when Calvin visits Boston?"
+    },
+    {
+      "conv_id": "conv-50",
+      "category": "open-domain",
+      "question": "What inspired Calvin's recent music?"
+    },
+    {
+      "conv_id": "conv-50",
+      "category": "open-domain",
+      "question": "Which city is featured in the photograph Dave showed Calvin?"
+    },
+    {
+      "conv_id": "conv-50",
+      "category": "adversarial",
+      "question": "What is Calvin's new business venture as of 1 May, 2023?"
+    },
+    {
+      "conv_id": "conv-50",
+      "category": "adversarial",
+      "question": "What emotion does Calvin mention feeling when he sees the relief of someone whose car he fixed?"
+    },
+    {
+      "conv_id": "conv-50",
+      "category": "adversarial",
+      "question": "What does Dave aim to do with his passion for cooking?"
+    },
+    {
+      "conv_id": "conv-50",
+      "category": "adversarial",
+      "question": "When did Calvin first get interested in motorcycles?"
+    }
+  ],
+  "comparison": {
+    "mempalace_raw_top10_R10": "88.9% (hybrid v5, no LLM)",
+    "mempalace_rerank_top50_R10": "100% (trivial: top-k > sessions)"
+  },
+  "total_time_s": 31.3
+}

@@ -1,0 +1,59 @@
+{
+  "mode": "enhanced_v2",
+  "top_k": 10,
+  "total_questions": 20,
+  "overall": {
+    "R@5": 70.0,
+    "R@10": 90.0,
+    "NDCG@5": 0.6465338279036696,
+    "NDCG@10": 0.7106919048594885
+  },
+  "per_category": {
+    "single-session-user": {
+      "count": 20,
+      "R@5": 70.0,
+      "R@10": 90.0,
+      "NDCG@5": 0.6465338279036696,
+      "NDCG@10": 0.7106919048594885
+    }
+  },
+  "timing": {
+    "embed_total_s": 0.4,
+    "search_total_s": 38.1,
+    "avg_embed_per_q_s": 0.02,
+    "avg_search_per_q_ms": 1907.0
+  },
+  "misses_at_5": [
+    {
+      "question_id": "e47becba",
+      "question_type": "single-session-user",
+      "question": "What degree did I graduate with?"
+    },
+    {
+      "question_id": "1e043500",
+      "question_type": "single-session-user",
+      "question": "What is the name of the playlist I created on Spotify?"
+    },
+    {
+      "question_id": "5d3d2817",
+      "question_type": "single-session-user",
+      "question": "What was my previous occupation?"
+    },
+    {
+      "question_id": "3b6f954b",
+      "question_type": "single-session-user",
+      "question": "Where did I attend for my study abroad program?"
+    },
+    {
+      "question_id": "726462e0",
+      "question_type": "single-session-user",
+      "question": "What was the discount I got on my first purchase from the new clothing brand?"
+    },
+    {
+      "question_id": "ad7109d1",
+      "question_type": "single-session-user",
+      "question": "What speed is my new internet plan?"
+    }
+  ],
+  "total_time_s": 38.7
+}

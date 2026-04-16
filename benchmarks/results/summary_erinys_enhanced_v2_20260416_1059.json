@@ -1,0 +1,99 @@
+{
+  "mode": "enhanced_v2",
+  "top_k": 10,
+  "total_questions": 500,
+  "overall": {
+    "R@5": 98.6,
+    "R@10": 99.2,
+    "NDCG@5": 0.9208574472336831,
+    "NDCG@10": 0.9354549467563007
+  },
+  "per_category": {
+    "knowledge-update": {
+      "count": 78,
+      "R@5": 100.0,
+      "R@10": 100.0,
+      "NDCG@5": 0.988804361421617,
+      "NDCG@10": 0.988804361421617
+    },
+    "multi-session": {
+      "count": 133,
+      "R@5": 100.0,
+      "R@10": 100.0,
+      "NDCG@5": 0.9057044934561385,
+      "NDCG@10": 0.9390543859425706
+    },
+    "single-session-assistant": {
+      "count": 56,
+      "R@5": 98.21428571428571,
+      "R@10": 100.0,
+      "NDCG@5": 0.9755523170280618,
+      "NDCG@10": 0.9815046979804427
+    },
+    "single-session-preference": {
+      "count": 30,
+      "R@5": 90.0,
+      "R@10": 93.33333333333333,
+      "NDCG@5": 0.784123967142861,
+      "NDCG@10": 0.7946394630357186
+    },
+    "single-session-user": {
+      "count": 70,
+      "R@5": 100.0,
+      "R@10": 100.0,
+      "NDCG@5": 0.9636342224622746,
+      "NDCG@10": 0.9636342224622746
+    },
+    "temporal-reasoning": {
+      "count": 133,
+      "R@5": 97.74436090225564,
+      "R@10": 98.49624060150376,
+      "NDCG@5": 0.8814604620757331,
+      "NDCG@10": 0.898110205312532
+    }
+  },
+  "timing": {
+    "embed_total_s": 7.0,
+    "search_total_s": 6.2,
+    "avg_embed_per_q_s": 0.01,
+    "avg_search_per_q_ms": 12.4
+  },
+  "misses_at_5": [
+    {
+      "question_id": "75832dbd",
+      "question_type": "single-session-preference",
+      "question": "Can you recommend some recent publications or conferences that I might find interesting?"
+    },
+    {
+      "question_id": "06f04340",
+      "question_type": "single-session-preference",
+      "question": "What should I serve for dinner this weekend with my homegrown ingredients?"
+    },
+    {
+      "question_id": "d6233ab6",
+      "question_type": "single-session-preference",
+      "question": "I've been feeling nostalgic lately. Do you think it would be a good idea to attend my high school reunion?"
+    },
+    {
+      "question_id": "gpt4_468eb064",
+      "question_type": "temporal-reasoning",
+      "question": "Who did I meet with during the lunch last Tuesday?"
+    },
+    {
+      "question_id": "6e984302",
+      "question_type": "temporal-reasoning",
+      "question": "I mentioned an investment for a competition four weeks ago? What did I buy?"
+    },
+    {
+      "question_id": "gpt4_8279ba03",
+      "question_type": "temporal-reasoning",
+      "question": "What kitchen appliance did I buy 10 days ago?"
+    },
+    {
+      "question_id": "ceb54acb",
+      "question_type": "single-session-assistant",
+      "question": "In our previous chat, you suggested 'sexual compulsions' and a few other options for alternative terms for certain behaviors. Can you remind me what the other four options were?"
+    }
+  ],
+  "total_time_s": 601.1
+}

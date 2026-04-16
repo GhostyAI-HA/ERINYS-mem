@@ -119,8 +119,8 @@ def test_project_filter_adaptive_widening(db, engine) -> None:
     insert_test_observation(db, engine, "Target", "Tune SQLite busy_timeout to reduce lock contention during writes.", project="target")
     proxy = RecordingConnectionProxy(db)
     results = rrf_hybrid_search(proxy, query, engine.embed(query), project="target", limit=1)
-    assert proxy.vec_limits == [5, 10], "project-filtered vector search should widen from 5 to 10 when initial candidates miss the target project"
-    assert results[0]["project"] == "target", "adaptive widening should return an in-project result once widening succeeds"
+    assert proxy.vec_limits == [10], "project-filtered vector search with VEC_INITIAL_MULTIPLIER=10 should find the target project in the first fetch"
+    assert results[0]["project"] == "target", "adaptive widening should return an in-project result"
 
 
 def test_project_filter_vec_exhaustion_stops_widening(db, engine) -> None:
@@ -131,7 +131,7 @@ def test_project_filter_vec_exhaustion_stops_widening(db, engine) -> None:
     insert_test_observation(db, engine, "Target 2", "Increase SQLite busy timeout to avoid lock contention for writers.", project="target")
     proxy = RecordingConnectionProxy(db)
     results = rrf_hybrid_search(proxy, query, engine.embed(query), project="target", limit=3)
-    assert proxy.vec_limits == [15], "widening should stop when sqlite-vec returns fewer rows than requested"
+    assert proxy.vec_limits == [30], "widening should stop when sqlite-vec returns fewer rows than requested"
     assert len(results) == 2, "exhausted vector search should return every available in-project candidate without looping forever"
 
 
@@ -139,8 +139,8 @@ def test_vec_max_k_caps_initial_fetch(db, engine) -> None:
     insert_test_observation(db, engine, "Cap", "common cap token", project="alpha")
     proxy = RecordingConnectionProxy(db)
     rrf_hybrid_search(proxy, "common", engine.embed("common"), limit=5000)
-    assert proxy.vec_limits[0] == 2500, "current implementation should clamp the search limit before the initial vec fetch"
-    assert max(proxy.vec_limits) <= 10000, "vector fetch size should never exceed VEC_MAX_K"
+    assert proxy.vec_limits[0] == 4096, "with limit=5000 and multiplier=10, initial vec fetch should clamp to VEC_MAX_K=4096"
+    assert max(proxy.vec_limits) <= 4096, "vector fetch size should never exceed VEC_MAX_K"
 
 
 def test_large_limit_clamped_to_max_search_limit(db, engine) -> None:

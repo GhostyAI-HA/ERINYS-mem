@@ -1,0 +1,36 @@
+{
+  "mode": "enhanced_v2_fulldb",
+  "top_k": 10,
+  "total_questions": 50,
+  "overall": {
+    "R@5": 98.0,
+    "R@10": 98.0,
+    "NDCG@5": 0.9364693163757554,
+    "NDCG@10": 0.9364693163757554
+  },
+  "per_category": {
+    "single-session-user": {
+      "count": 50,
+      "R@5": 98.0,
+      "R@10": 98.0,
+      "NDCG@5": 0.9364693163757554,
+      "NDCG@10": 0.9364693163757554
+    }
+  },
+  "timing": {
+    "embed_total_s": 0.0,
+    "search_total_s": 8.8,
+    "avg_embed_per_q_s": 0.0,
+    "avg_search_per_q_ms": 175.5,
+    "db_build_s": 0.7,
+    "unique_sessions": 2375
+  },
+  "misses_at_5": [
+    {
+      "question_id": "5d3d2817",
+      "question_type": "single-session-user",
+      "question": "What was my previous occupation?"
+    }
+  ],
+  "total_time_s": 9.6
+}

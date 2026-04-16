@@ -1,0 +1,84 @@
+{
+  "mode": "enhanced_v4",
+  "top_k": 10,
+  "total_questions": 500,
+  "overall": {
+    "R@5": 99.2,
+    "R@10": 99.4,
+    "NDCG@5": 0.9395613950469158,
+    "NDCG@10": 0.9480567915327981
+  },
+  "per_category": {
+    "knowledge-update": {
+      "count": 78,
+      "R@5": 100.0,
+      "R@10": 100.0,
+      "NDCG@5": 0.9871794871794872,
+      "NDCG@10": 0.9895458422664049
+    },
+    "multi-session": {
+      "count": 133,
+      "R@5": 100.0,
+      "R@10": 100.0,
+      "NDCG@5": 0.942705149944997,
+      "NDCG@10": 0.9568352693788028
+    },
+    "single-session-assistant": {
+      "count": 56,
+      "R@5": 100.0,
+      "R@10": 100.0,
+      "NDCG@5": 0.9910714285714286,
+      "NDCG@10": 0.9910714285714286
+    },
+    "single-session-preference": {
+      "count": 30,
+      "R@5": 96.66666666666667,
+      "R@10": 96.66666666666667,
+      "NDCG@5": 0.8630929753571458,
+      "NDCG@10": 0.8630929753571458
+    },
+    "single-session-user": {
+      "count": 70,
+      "R@5": 100.0,
+      "R@10": 100.0,
+      "NDCG@5": 0.94951773828122,
+      "NDCG@10": 0.94951773828122
+    },
+    "temporal-reasoning": {
+      "count": 133,
+      "R@5": 97.74436090225564,
+      "R@10": 98.49624060150376,
+      "NDCG@5": 0.8988111401531844,
+      "NDCG@10": 0.915230814299541
+    }
+  },
+  "timing": {
+    "embed_total_s": 9.8,
+    "search_total_s": 4.3,
+    "avg_embed_per_q_s": 0.02,
+    "avg_search_per_q_ms": 8.5
+  },
+  "misses_at_5": [
+    {
+      "question_id": "d6233ab6",
+      "question_type": "single-session-preference",
+      "question": "I've been feeling nostalgic lately. Do you think it would be a good idea to attend my high school reunion?"
+    },
+    {
+      "question_id": "gpt4_4929293b",
+      "question_type": "temporal-reasoning",
+      "question": "What was the the life event of one of my relatives that I participated in a week ago?"
+    },
+    {
+      "question_id": "eac54add",
+      "question_type": "temporal-reasoning",
+      "question": "What was the significant buisiness milestone I mentioned four weeks ago?"
+    },
+    {
+      "question_id": "gpt4_8279ba03",
+      "question_type": "temporal-reasoning",
+      "question": "What kitchen appliance did I buy 10 days ago?"
+    }
+  ],
+  "total_time_s": 2030.9
+}

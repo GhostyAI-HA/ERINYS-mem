@@ -1,0 +1,224 @@
+{
+  "mode": "rrf",
+  "top_k": 10,
+  "total_questions": 500,
+  "overall": {
+    "R@5": 93.60000000000001,
+    "R@10": 97.2,
+    "NDCG@5": 0.8289709263989747,
+    "NDCG@10": 0.8569967605733019
+  },
+  "per_category": {
+    "knowledge-update": {
+      "count": 78,
+      "R@5": 100.0,
+      "R@10": 100.0,
+      "NDCG@5": 0.8906263462557018,
+      "NDCG@10": 0.9166539791479179
+    },
+    "multi-session": {
+      "count": 133,
+      "R@5": 95.48872180451127,
+      "R@10": 99.24812030075188,
+      "NDCG@5": 0.8384099575160298,
+      "NDCG@10": 0.8788412180900126
+    },
+    "single-session-assistant": {
+      "count": 56,
+      "R@5": 100.0,
+      "R@10": 100.0,
+      "NDCG@5": 1.0,
+      "NDCG@10": 1.0
+    },
+    "single-session-preference": {
+      "count": 30,
+      "R@5": 86.66666666666667,
+      "R@10": 90.0,
+      "NDCG@5": 0.7309451460775457,
+      "NDCG@10": 0.7409794792663451
+    },
+    "single-session-user": {
+      "count": 70,
+      "R@5": 82.85714285714286,
+      "R@10": 92.85714285714286,
+      "NDCG@5": 0.7206336609475777,
+      "NDCG@10": 0.7528099095473058
+    },
+    "temporal-reasoning": {
+      "count": 133,
+      "R@5": 92.4812030075188,
+      "R@10": 96.2406015037594,
+      "NDCG@5": 0.7904915277688259,
+      "NDCG@10": 0.8209579688784956
+    }
+  },
+  "timing": {
+    "embed_total_s": 760.3,
+    "search_total_s": 2.1,
+    "avg_embed_per_q_s": 1.52,
+    "avg_search_per_q_ms": 4.2
+  },
+  "misses_at_5": [
+    {
+      "question_id": "e47becba",
+      "question_type": "single-session-user",
+      "question": "What degree did I graduate with?"
+    },
+    {
+      "question_id": "118b2229",
+      "question_type": "single-session-user",
+      "question": "How long is my daily commute to work?"
+    },
+    {
+      "question_id": "1e043500",
+      "question_type": "single-session-user",
+      "question": "What is the name of the playlist I created on Spotify?"
+    },
+    {
+      "question_id": "5d3d2817",
+      "question_type": "single-session-user",
+      "question": "What was my previous occupation?"
+    },
+    {
+      "question_id": "726462e0",
+      "question_type": "single-session-user",
+      "question": "What was the discount I got on my first purchase from the new clothing brand?"
+    },
+    {
+      "question_id": "d52b4f67",
+      "question_type": "single-session-user",
+      "question": "Where did I attend my cousin's wedding?"
+    },
+    {
+      "question_id": "86b68151",
+      "question_type": "single-session-user",
+      "question": "Where did I buy my new bookshelf from?"
+    },
+    {
+      "question_id": "577d4d32",
+      "question_type": "single-session-user",
+      "question": "What time do I stop checking work emails and messages?"
+    },
+    {
+      "question_id": "f4f1d8a4",
+      "question_type": "single-session-user",
+      "question": "Who gave me a new stand mixer as a birthday gift?"
+    },
+    {
+      "question_id": "a82c026e",
+      "question_type": "single-session-user",
+      "question": "What game did I finally beat last weekend?"
+    },
+    {
+      "question_id": "19b5f2b3_abs",
+      "question_type": "single-session-user",
+      "question": "How long was I in Korea for?"
+    },
+    {
+      "question_id": "f4f1d8a4_abs",
+      "question_type": "single-session-user",
+      "question": "What did my dad gave me as a birthday gift?"
+    },
+    {
+      "question_id": "6d550036",
+      "question_type": "multi-session",
+      "question": "How many projects have I led or am currently leading?"
+    },
+    {
+      "question_id": "129d1232",
+      "question_type": "multi-session",
+      "question": "How much money did I raise in total through all the charity events I participated in?"
+    },
+    {
+      "question_id": "10d9b85a",
+      "question_type": "multi-session",
+      "question": "How many days did I spend attending workshops, lectures, and conferences in April?"
+    },
+    {
+      "question_id": "75832dbd",
+      "question_type": "single-session-preference",
+      "question": "Can you recommend some recent publications or conferences that I might find interesting?"
+    },
+    {
+      "question_id": "35a27287",
+      "question_type": "single-session-preference",
+      "question": "Can you recommend some interesting cultural events happening around me this weekend?"
+    },
+    {
+      "question_id": "d6233ab6",
+      "question_type": "single-session-preference",
+      "question": "I've been feeling nostalgic lately. Do you think it would be a good idea to attend my high school reunion?"
+    },
+    {
+      "question_id": "1c0ddc50",
+      "question_type": "single-session-preference",
+      "question": "Can you suggest some activities I can do during my commute to work?"
+    },
+    {
+      "question_id": "92a0aa75",
+      "question_type": "multi-session",
+      "question": "How long have I been working in my current role?"
+    },
+    {
+      "question_id": "ba358f49",
+      "question_type": "multi-session",
+      "question": "How many years will I be when my friend Rachel gets married?"
+    },
+    {
+      "question_id": "c18a7dc8",
+      "question_type": "multi-session",
+      "question": "How many years older am I than when I graduated from college?"
+    },
+    {
+      "question_id": "b46e15ed",
+      "question_type": "temporal-reasoning",
+      "question": "How many months have passed since I participated in two charity events in a row, on consecutive days?"
+    },
+    {
+      "question_id": "af082822",
+      "question_type": "temporal-reasoning",
+      "question": "How many weeks ago did I attend the friends and family sale at Nordstrom?"
+    },
+    {
+      "question_id": "gpt4_1916e0ea",
+      "question_type": "temporal-reasoning",
+      "question": "How many days passed between the day I cancelled my FarmFresh subscription and the day I did my online grocery shopping from Instacart?"
+    },
+    {
+      "question_id": "gpt4_468eb063",
+      "question_type": "temporal-reasoning",
+      "question": "How many days ago did I meet Emma?"
+    },
+    {
+      "question_id": "71017277",
+      "question_type": "temporal-reasoning",
+      "question": "I received a piece of jewelry last Saturday from whom?"
+    },
+    {
+      "question_id": "gpt4_4929293b",
+      "question_type": "temporal-reasoning",
+      "question": "What was the the life event of one of my relatives that I participated in a week ago?"
+    },
+    {
+      "question_id": "gpt4_468eb064",
+      "question_type": "temporal-reasoning",
+      "question": "Who did I meet with during the lunch last Tuesday?"
+    },
+    {
+      "question_id": "eac54add",
+      "question_type": "temporal-reasoning",
+      "question": "What was the significant buisiness milestone I mentioned four weeks ago?"
+    },
+    {
+      "question_id": "4dfccbf8",
+      "question_type": "temporal-reasoning",
+      "question": "What did I do with Rachel on the Wednesday two months ago?"
+    },
+    {
+      "question_id": "bbf86515",
+      "question_type": "temporal-reasoning",
+      "question": "How many days before the 'Rack Fest' did I participate in the 'Turbocharged Tuesdays' event?"
+    }
+  ],
+  "total_time_s": 762.9
+}

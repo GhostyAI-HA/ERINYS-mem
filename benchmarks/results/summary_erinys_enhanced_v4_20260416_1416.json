@@ -1,0 +1,109 @@
+{
+  "mode": "enhanced_v4",
+  "top_k": 10,
+  "total_questions": 500,
+  "overall": {
+    "R@5": 98.2,
+    "R@10": 99.8,
+    "NDCG@5": 0.9246770215328546,
+    "NDCG@10": 0.9403279540981255
+  },
+  "per_category": {
+    "knowledge-update": {
+      "count": 78,
+      "R@5": 100.0,
+      "R@10": 100.0,
+      "NDCG@5": 0.9822198358046853,
+      "NDCG@10": 0.9845861908916029
+    },
+    "multi-session": {
+      "count": 133,
+      "R@5": 100.0,
+      "R@10": 100.0,
+      "NDCG@5": 0.9196976275738477,
+      "NDCG@10": 0.9405103354713372
+    },
+    "single-session-assistant": {
+      "count": 56,
+      "R@5": 100.0,
+      "R@10": 100.0,
+      "NDCG@5": 0.964709268112247,
+      "NDCG@10": 0.964709268112247
+    },
+    "single-session-preference": {
+      "count": 30,
+      "R@5": 80.0,
+      "R@10": 100.0,
+      "NDCG@5": 0.6728272978311517,
+      "NDCG@10": 0.7404232728645442
+    },
+    "single-session-user": {
+      "count": 70,
+      "R@5": 100.0,
+      "R@10": 100.0,
+      "NDCG@5": 0.9713183267102605,
+      "NDCG@10": 0.9713183267102605
+    },
+    "temporal-reasoning": {
+      "count": 133,
+      "R@5": 97.74436090225564,
+      "R@10": 99.24812030075188,
+      "NDCG@5": 0.9113139720857254,
+      "NDCG@10": 0.9327043569314998
+    }
+  },
+  "timing": {
+    "embed_total_s": 10.4,
+    "search_total_s": 5.8,
+    "avg_embed_per_q_s": 0.02,
+    "avg_search_per_q_ms": 11.7
+  },
+  "misses_at_5": [
+    {
+      "question_id": "1a1907b4",
+      "question_type": "single-session-preference",
+      "question": "I've been thinking about making a cocktail for an upcoming get-together, but I'm not sure which one to choose. Any suggestions?"
+    },
+    {
+      "question_id": "09d032c9",
+      "question_type": "single-session-preference",
+      "question": "I've been having trouble with the battery life on my phone lately. Any tips?"
+    },
+    {
+      "question_id": "505af2f5",
+      "question_type": "single-session-preference",
+      "question": "I was thinking of trying a new coffee creamer recipe. Any recommendations?"
+    },
+    {
+      "question_id": "d6233ab6",
+      "question_type": "single-session-preference",
+      "question": "I've been feeling nostalgic lately. Do you think it would be a good idea to attend my high school reunion?"
+    },
+    {
+      "question_id": "07b6f563",
+      "question_type": "single-session-preference",
+      "question": "Can you suggest some useful accessories for my phone?"
+    },
+    {
+      "question_id": "1c0ddc50",
+      "question_type": "single-session-preference",
+      "question": "Can you suggest some activities I can do during my commute to work?"
+    },
+    {
+      "question_id": "gpt4_7f6b06db",
+      "question_type": "temporal-reasoning",
+      "question": "What is the order of the three trips I took in the past three months, from earliest to latest?"
+    },
+    {
+      "question_id": "eac54add",
+      "question_type": "temporal-reasoning",
+      "question": "What was the significant buisiness milestone I mentioned four weeks ago?"
+    },
+    {
+      "question_id": "gpt4_8279ba03",
+      "question_type": "temporal-reasoning",
+      "question": "What kitchen appliance did I buy 10 days ago?"
+    }
+  ],
+  "total_time_s": 17.3
+}

@@ -1,0 +1,77 @@
+{
+  "benchmark": "LoCoMo",
+  "mode": "enhanced_v2_boost",
+  "top_k": 10,
+  "total_questions": 50,
+  "overall": {
+    "R@5": 88.0,
+    "R@10": 96.0,
+    "NDCG@5": 0.6573904967974012,
+    "NDCG@10": 0.7221717073018183
+  },
+  "per_category": {
+    "single-hop": {
+      "count": 20,
+      "R@5": 85.0,
+      "R@10": 100.0,
+      "NDCG@5": 0.520211297013623,
+      "NDCG@10": 0.6677110819587714
+    },
+    "temporal": {
+      "count": 24,
+      "R@5": 95.83333333333334,
+      "R@10": 100.0,
+      "NDCG@5": 0.8248926928647881,
+      "NDCG@10": 0.8369370606280334
+    },
+    "temporal-inference": {
+      "count": 6,
+      "R@5": 66.66666666666666,
+      "R@10": 66.66666666666666,
+      "NDCG@5": 0.44464571180711493,
+      "NDCG@10": 0.44464571180711493
+    }
+  },
+  "timing": {
+    "ingest_total_s": 0.9,
+    "search_total_s": 0.3,
+    "avg_search_per_q_ms": 6.6
+  },
+  "misses_at_5": [
+    {
+      "conv_id": "conv-26",
+      "category": "temporal-inference",
+      "question": "What fields would Caroline be likely to pursue in her educaton?"
+    },
+    {
+      "conv_id": "conv-26",
+      "category": "single-hop",
+      "question": "What is Caroline's identity?"
+    },
+    {
+      "conv_id": "conv-26",
+      "category": "temporal",
+      "question": "When is Melanie planning on going camping?"
+    },
+    {
+      "conv_id": "conv-26",
+      "category": "single-hop",
+      "question": "What events has Caroline participated in to help children?"
+    },
+    {
+      "conv_id": "conv-26",
+      "category": "single-hop",
+      "question": "What did Melanie paint recently?"
+    },
+    {
+      "conv_id": "conv-26",
+      "category": "temporal-inference",
+      "question": "What would Caroline's political leaning likely be?"
+    }
+  ],
+  "comparison": {
+    "mempalace_raw_top10_R10": "88.9% (hybrid v5, no LLM)",
+    "mempalace_rerank_top50_R10": "100% (trivial: top-k > sessions)"
+  },
+  "total_time_s": 1.3
+}

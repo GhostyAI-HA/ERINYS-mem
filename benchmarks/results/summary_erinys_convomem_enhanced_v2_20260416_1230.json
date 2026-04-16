@@ -1,0 +1,51 @@
+{
+  "benchmark": "ConvoMem",
+  "mode": "enhanced_v2",
+  "top_k": 10,
+  "total_items": 250,
+  "overall": {
+    "R@k": 88.4,
+    "perfect_pct": 88.0,
+    "zero_pct": 11.2
+  },
+  "per_category": {
+    "abstention_evidence": {
+      "name": "Abstention",
+      "count": 50,
+      "R@k": 91.0,
+      "perfect": "45/50"
+    },
+    "assistant_facts_evidence": {
+      "name": "Assistant Facts",
+      "count": 50,
+      "R@k": 100.0,
+      "perfect": "50/50"
+    },
+    "implicit_connection_evidence": {
+      "name": "Implicit Connections",
+      "count": 50,
+      "R@k": 73.0,
+      "perfect": "36/50"
+    },
+    "preference_evidence": {
+      "name": "Preferences",
+      "count": 50,
+      "R@k": 80.0,
+      "perfect": "40/50"
+    },
+    "user_evidence": {
+      "name": "User Facts",
+      "count": 50,
+      "R@k": 98.0,
+      "perfect": "49/50"
+    }
+  },
+  "timing": {
+    "total_s": 44.6,
+    "avg_per_item_s": 0.18
+  },
+  "comparison": {
+    "mempalace_raw_R": "92.9% (verbatim text, semantic search)",
+    "mem0_RAG_R": "30-45%"
+  }
+}

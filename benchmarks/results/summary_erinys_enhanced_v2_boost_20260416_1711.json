@@ -1,0 +1,104 @@
+{
+  "mode": "enhanced_v2_boost",
+  "top_k": 10,
+  "total_questions": 500,
+  "overall": {
+    "R@5": 98.4,
+    "R@10": 99.4,
+    "NDCG@5": 0.9123781496072075,
+    "NDCG@10": 0.9293290824226927
+  },
+  "per_category": {
+    "knowledge-update": {
+      "count": 78,
+      "R@5": 100.0,
+      "R@10": 100.0,
+      "NDCG@5": 0.9829552756415146,
+      "NDCG@10": 0.9829552756415146
+    },
+    "multi-session": {
+      "count": 133,
+      "R@5": 100.0,
+      "R@10": 100.0,
+      "NDCG@5": 0.8912204619473187,
+      "NDCG@10": 0.9259963833581215
+    },
+    "single-session-assistant": {
+      "count": 56,
+      "R@5": 98.21428571428571,
+      "R@10": 100.0,
+      "NDCG@5": 0.9755523170280618,
+      "NDCG@10": 0.9809278526649186
+    },
+    "single-session-preference": {
+      "count": 30,
+      "R@5": 90.0,
+      "R@10": 96.66666666666667,
+      "NDCG@5": 0.7315378981044123,
+      "NDCG@10": 0.7534458041968125
+    },
+    "single-session-user": {
+      "count": 70,
+      "R@5": 98.57142857142858,
+      "R@10": 100.0,
+      "NDCG@5": 0.9574817002040833,
+      "NDCG@10": 0.9619883413010223
+    },
+    "temporal-reasoning": {
+      "count": 133,
+      "R@5": 97.74436090225564,
+      "R@10": 98.49624060150376,
+      "NDCG@5": 0.8825974146885911,
+      "NDCG@10": 0.9019698718681707
+    }
+  },
+  "timing": {
+    "embed_total_s": 6.9,
+    "search_total_s": 7.2,
+    "avg_embed_per_q_s": 0.01,
+    "avg_search_per_q_ms": 14.3
+  },
+  "misses_at_5": [
+    {
+      "question_id": "ccb36322",
+      "question_type": "single-session-user",
+      "question": "What is the name of the music streaming service have I been using lately?"
+    },
+    {
+      "question_id": "75832dbd",
+      "question_type": "single-session-preference",
+      "question": "Can you recommend some recent publications or conferences that I might find interesting?"
+    },
+    {
+      "question_id": "06f04340",
+      "question_type": "single-session-preference",
+      "question": "What should I serve for dinner this weekend with my homegrown ingredients?"
+    },
+    {
+      "question_id": "1a1907b4",
+      "question_type": "single-session-preference",
+      "question": "I've been thinking about making a cocktail for an upcoming get-together, but I'm not sure which one to choose. Any suggestions?"
+    },
+    {
+      "question_id": "gpt4_468eb064",
+      "question_type": "temporal-reasoning",
+      "question": "Who did I meet with during the lunch last Tuesday?"
+    },
+    {
+      "question_id": "6e984302",
+      "question_type": "temporal-reasoning",
+      "question": "I mentioned an investment for a competition four weeks ago? What did I buy?"
+    },
+    {
+      "question_id": "gpt4_8279ba03",
+      "question_type": "temporal-reasoning",
+      "question": "What kitchen appliance did I buy 10 days ago?"
+    },
+    {
+      "question_id": "ceb54acb",
+      "question_type": "single-session-assistant",
+      "question": "In our previous chat, you suggested 'sexual compulsions' and a few other options for alternative terms for certain behaviors. Can you remind me what the other four options were?"
+    }
+  ],
+  "total_time_s": 14.7
+}

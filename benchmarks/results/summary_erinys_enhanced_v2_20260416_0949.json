@@ -1,0 +1,28 @@
+{
+  "mode": "enhanced_v2",
+  "top_k": 10,
+  "total_questions": 50,
+  "overall": {
+    "R@5": 100.0,
+    "R@10": 100.0,
+    "NDCG@5": 0.9649641184676265,
+    "NDCG@10": 0.9649641184676265
+  },
+  "per_category": {
+    "single-session-user": {
+      "count": 50,
+      "R@5": 100.0,
+      "R@10": 100.0,
+      "NDCG@5": 0.9649641184676265,
+      "NDCG@10": 0.9649641184676265
+    }
+  },
+  "timing": {
+    "embed_total_s": 0.7,
+    "search_total_s": 0.4,
+    "avg_embed_per_q_s": 0.01,
+    "avg_search_per_q_ms": 7.6
+  },
+  "misses_at_5": [],
+  "total_time_s": 1.1
+}

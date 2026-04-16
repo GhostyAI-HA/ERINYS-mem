@@ -31,7 +31,7 @@ from .decay import current_strength
 from .distill import distill_observation
 from .embedding import EmbeddingEngine, serialize_f32
 from .graph import GraphEngine, VALID_RELATIONS, create_edge, traverse
-from .search import rrf_hybrid_search
+from .search import rrf_hybrid_search, focus_query_for_embedding
 from .session import SessionManager, end_session, get_recent_sessions, save_session_summary, start_session
 from .temporal import conflict_check, query_as_of, supersede_observation
 
@@ -379,17 +379,22 @@ def _search_results(
 ) -> list[dict[str, Any]]:
     _validate_metadata_filter(metadata_filter)
     normalized_limit = _validate_limit(limit)
-    query_embedding = _embedding().embed(query)
+    focused_text = focus_query_for_embedding(query)
+    search_embedding = _embedding().embed(query)
+    focused_emb = None
+    if focused_text != query:
+        focused_emb = _embedding().embed(focused_text)
     results = rrf_hybrid_search(
         _db(),
         query,
-        query_embedding,
+        search_embedding,
         project=project,
         metadata_filter=metadata_filter,
         limit=min(normalized_limit * 5, _CONFIG.max_search_limit),
         k=_CONFIG.rrf_k,
         fts_weight=_CONFIG.fts_weight,
         vec_weight=_CONFIG.vec_weight,
+        focused_embedding=focused_emb,
     )
     filtered: list[dict[str, Any]] = []
     for row in results:
@@ -519,7 +524,17 @@ def _default_backup_path() -> Path:
 
 
 def _backup_database(path: str | None = None) -> dict[str, Any]:
-    backup_path = Path(path).expanduser() if path is not None else _default_backup_path()
+    if path is not None:
+        resolved = Path(path).expanduser().resolve()
+        if _db_path() != ":memory:":
+            allowed_parent = Path(_db_path()).expanduser().resolve().parent
+            if not resolved.is_relative_to(allowed_parent):
+                raise ValueError(f"backup path must be under {allowed_parent}")
+        if resolved.suffix not in (".db", ".sqlite", ".sqlite3"):
+            raise ValueError("backup path must have .db/.sqlite/.sqlite3 extension")
+        backup_path = resolved
+    else:
+        backup_path = _default_backup_path()
     backup_path.parent.mkdir(parents=True, exist_ok=True)
     _db().execute("PRAGMA wal_checkpoint(PASSIVE)")
     target = get_db(ErinysConfig(db_path=str(backup_path)))

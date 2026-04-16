@@ -1,0 +1,139 @@
+{
+  "mode": "enhanced",
+  "top_k": 10,
+  "total_questions": 500,
+  "overall": {
+    "R@5": 97.0,
+    "R@10": 98.8,
+    "NDCG@5": 0.8911858311902574,
+    "NDCG@10": 0.9089540765114107
+  },
+  "per_category": {
+    "knowledge-update": {
+      "count": 78,
+      "R@5": 100.0,
+      "R@10": 100.0,
+      "NDCG@5": 0.9747075127723247,
+      "NDCG@10": 0.9747075127723247
+    },
+    "multi-session": {
+      "count": 133,
+      "R@5": 97.74436090225564,
+      "R@10": 100.0,
+      "NDCG@5": 0.8827974996389326,
+      "NDCG@10": 0.9120660275800654
+    },
+    "single-session-assistant": {
+      "count": 56,
+      "R@5": 98.21428571428571,
+      "R@10": 98.21428571428571,
+      "NDCG@5": 0.9755523170280618,
+      "NDCG@10": 0.9755523170280618
+    },
+    "single-session-preference": {
+      "count": 30,
+      "R@5": 83.33333333333334,
+      "R@10": 90.0,
+      "NDCG@5": 0.7005333961334691,
+      "NDCG@10": 0.723518080148181
+    },
+    "single-session-user": {
+      "count": 70,
+      "R@5": 98.57142857142858,
+      "R@10": 100.0,
+      "NDCG@5": 0.9330821241215144,
+      "NDCG@10": 0.9378440288834192
+    },
+    "temporal-reasoning": {
+      "count": 133,
+      "R@5": 96.2406015037594,
+      "R@10": 98.49624060150376,
+      "NDCG@5": 0.8360224197054725,
+      "NDCG@10": 0.8658610256500686
+    }
+  },
+  "timing": {
+    "embed_total_s": 765.0,
+    "search_total_s": 3.2,
+    "avg_embed_per_q_s": 1.53,
+    "avg_search_per_q_ms": 6.3
+  },
+  "misses_at_5": [
+    {
+      "question_id": "726462e0",
+      "question_type": "single-session-user",
+      "question": "What was the discount I got on my first purchase from the new clothing brand?"
+    },
+    {
+      "question_id": "gpt4_f2262a51",
+      "question_type": "multi-session",
+      "question": "How many different doctors did I visit?"
+    },
+    {
+      "question_id": "bf659f65",
+      "question_type": "multi-session",
+      "question": "How many music albums or EPs have I purchased or downloaded?"
+    },
+    {
+      "question_id": "75832dbd",
+      "question_type": "single-session-preference",
+      "question": "Can you recommend some recent publications or conferences that I might find interesting?"
+    },
+    {
+      "question_id": "06f04340",
+      "question_type": "single-session-preference",
+      "question": "What should I serve for dinner this weekend with my homegrown ingredients?"
+    },
+    {
+      "question_id": "d6233ab6",
+      "question_type": "single-session-preference",
+      "question": "I've been feeling nostalgic lately. Do you think it would be a good idea to attend my high school reunion?"
+    },
+    {
+      "question_id": "1d4e3b97",
+      "question_type": "single-session-preference",
+      "question": "I noticed my bike seems to be performing even better during my Sunday group rides. Could there be a reason for this?"
+    },
+    {
+      "question_id": "1c0ddc50",
+      "question_type": "single-session-preference",
+      "question": "Can you suggest some activities I can do during my commute to work?"
+    },
+    {
+      "question_id": "92a0aa75",
+      "question_type": "multi-session",
+      "question": "How long have I been working in my current role?"
+    },
+    {
+      "question_id": "gpt4_4929293b",
+      "question_type": "temporal-reasoning",
+      "question": "What was the the life event of one of my relatives that I participated in a week ago?"
+    },
+    {
+      "question_id": "gpt4_468eb064",
+      "question_type": "temporal-reasoning",
+      "question": "Who did I meet with during the lunch last Tuesday?"
+    },
+    {
+      "question_id": "9a707b82",
+      "question_type": "temporal-reasoning",
+      "question": "I mentioned cooking something for my friend a couple of days ago. What was it?"
+    },
+    {
+      "question_id": "eac54add",
+      "question_type": "temporal-reasoning",
+      "question": "What was the significant buisiness milestone I mentioned four weeks ago?"
+    },
+    {
+      "question_id": "gpt4_8279ba03",
+      "question_type": "temporal-reasoning",
+      "question": "What kitchen appliance did I buy 10 days ago?"
+    },
+    {
+      "question_id": "1903aded",
+      "question_type": "single-session-assistant",
+      "question": "I think we discussed work from home jobs for seniors earlier. Can you remind me what was the 7th job in the list you provided?"
+    }
+  ],
+  "total_time_s": 768.6
+}

@@ -1,0 +1,63 @@
+{
+  "mode": "enhanced_v4",
+  "top_k": 10,
+  "total_questions": 500,
+  "overall": {
+    "R@5": 100.0,
+    "R@10": 100.0,
+    "NDCG@5": 0.9433335136094835,
+    "NDCG@10": 0.9523291671129486
+  },
+  "per_category": {
+    "knowledge-update": {
+      "count": 78,
+      "R@5": 100.0,
+      "R@10": 100.0,
+      "NDCG@5": 0.981190615152739,
+      "NDCG@10": 0.9835569702396566
+    },
+    "multi-session": {
+      "count": 133,
+      "R@5": 100.0,
+      "R@10": 100.0,
+      "NDCG@5": 0.9374711656135184,
+      "NDCG@10": 0.9539365018548492
+    },
+    "single-session-assistant": {
+      "count": 56,
+      "R@5": 100.0,
+      "R@10": 100.0,
+      "NDCG@5": 0.9700618896212101,
+      "NDCG@10": 0.9700618896212101
+    },
+    "single-session-preference": {
+      "count": 30,
+      "R@5": 100.0,
+      "R@10": 100.0,
+      "NDCG@5": 0.8672000628001357,
+      "NDCG@10": 0.8672000628001357
+    },
+    "single-session-user": {
+      "count": 70,
+      "R@5": 100.0,
+      "R@10": 100.0,
+      "NDCG@5": 0.9732989964795922,
+      "NDCG@10": 0.9732989964795922
+    },
+    "temporal-reasoning": {
+      "count": 133,
+      "R@5": 100.0,
+      "R@10": 100.0,
+      "NDCG@5": 0.9171415514275705,
+      "NDCG@10": 0.9331066742460361
+    }
+  },
+  "timing": {
+    "embed_total_s": 9.1,
+    "search_total_s": 5.1,
+    "avg_embed_per_q_s": 0.02,
+    "avg_search_per_q_ms": 10.1
+  },
+  "misses_at_5": [],
+  "total_time_s": 15.2
+}
