@@ -4,7 +4,7 @@
 
 # ERINYS — Reflexive Memory for AI Agents
 
-**100% retrieval recall on LongMemEval. Zero LLM calls. 11ms latency. Pure algorithms.**
+**100% retrieval recall on LongMemEval-S. Zero LLM calls. 11ms latency. Pure algorithms.**
 
 [🇯🇵 日本語版 / Japanese](README_ja.md)
 
@@ -24,15 +24,17 @@ ERINYS is a guard dog. It remembers, forgets, questions, and bites.
 
 ## Benchmarks
 
-**100% R@5 on LongMemEval (500 questions) — with zero LLM calls and 11.2ms average latency.**
+**100% R@5 on LongMemEval-S (N=500 questions) — with zero LLM calls and 11.2ms average latency.**
 
-| System | R@5 | LLM in Retrieval | Avg Latency |
-|:--|:--|:--|:--|
-| **ERINYS (enhanced_v4)** | **100.0%** | **❌ None** | **11.2 ms** |
-| MemPalace (raw) | 96.6% | ❌ None | — |
-| MemPalace (+ LLM rerank) | 99.4% | ✅ Yes | Seconds |
+| System | R@5 | LLM in Retrieval | Avg Latency | Source |
+|:--|:--|:--|:--|:--|
+| **ERINYS (enhanced_v4)** | **100.0%** | **❌ None** | **11.2 ms** | This repo |
+| MemPalace (raw) | 96.6% | ❌ None | — | [Self-reported](https://github.com/mempalace/mempalace) |
+| MemPalace (+ LLM rerank) | 99.4% | ✅ Yes | Seconds | [Self-reported](https://github.com/mempalace/mempalace) |
 
 > **Why this matters:** Every other system achieving near-perfect recall depends on LLM query rewriting or reranking — adding seconds of latency and API costs per retrieval. ERINYS does it with FTS5 + sqlite-vec + algorithmic boosting alone. No API keys. No network. No tokens burned. Your agent's memory runs at the speed of SQLite.
+>
+> Evaluated on `longmemeval_s` split (500 questions, ~20 sessions each). MemPalace numbers are from their README (same split). See [benchmarks/BENCHMARKS.md](benchmarks/BENCHMARKS.md) for caveats and full methodology.
 
 <details>
 <summary>ERINYS mode comparison</summary>

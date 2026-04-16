@@ -4,7 +4,7 @@
 
 # ERINYS — AIエージェントのための反射記憶
 
-**LongMemEvalで検索再現率100%達成。LLM呼び出しゼロ。11msレイテンシ。純粋アルゴリズム。**
+**LongMemEval-Sで検索再現率100%達成。LLM呼び出しゼロ。11msレイテンシ。純粋アルゴリズム。**
 
 [🇬🇧 English](README.md)
 
@@ -24,15 +24,17 @@ ERINYSは番犬だ。覚え、忘れ、疑い、噛む。
 
 ## ベンチマーク
 
-**LongMemEval（500問）で R@5 100.0% を達成。LLM呼び出しゼロ、平均レイテンシ 11.2ms。**
+**LongMemEval-S（N=500問）で R@5 100.0% を達成。LLM呼び出しゼロ、平均レイテンシ 11.2ms。**
 
-| システム | R@5 | 検索時LLM | 平均レイテンシ |
-|:--|:--|:--|:--|
-| **ERINYS (enhanced_v4)** | **100.0%** | **❌ 不要** | **11.2 ms** |
-| MemPalace（素） | 96.6% | ❌ 不要 | — |
-| MemPalace（+ LLMリランク） | 99.4% | ✅ 必要 | 数秒 |
+| システム | R@5 | 検索時LLM | 平均レイテンシ | 出典 |
+|:--|:--|:--|:--|:--|
+| **ERINYS (enhanced_v4)** | **100.0%** | **❌ 不要** | **11.2 ms** | 本リポジトリ |
+| MemPalace（素） | 96.6% | ❌ 不要 | — | [自己報告](https://github.com/mempalace/mempalace) |
+| MemPalace（+ LLMリランク） | 99.4% | ✅ 必要 | 数秒 | [自己報告](https://github.com/mempalace/mempalace) |
 
 > **なぜ重要か：** 他のシステムが高精度を出すにはLLMによるクエリ書き換えやリランキングが必須で、検索のたびに数秒のAPIコストがかかる。ERINYSはFTS5 + sqlite-vec + アルゴリズムブーストだけでそれを実現した。APIキー不要。ネットワーク不要。トークン消費ゼロ。エージェントの記憶はSQLiteの速度で動く。
+>
+> `longmemeval_s` split（500問、各約20セッション）で評価。MemPalaceの数値は彼らのREADMEからの引用（同一split）。詳細な手法と注意事項は [benchmarks/BENCHMARKS.md](benchmarks/BENCHMARKS.md) を参照。
 
 <details>
 <summary>ERINYSモード別比較</summary>

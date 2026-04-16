@@ -3,7 +3,11 @@
 > All numbers below are reproducible from this repository.
 > Run instructions are at the bottom of this document.
 
-## LongMemEval — Retrieval Recall (500 questions)
+## LongMemEval-S — Retrieval Recall (N=500 questions)
+
+**Dataset**: [LongMemEval](https://github.com/xiaowu0162/LongMemEval) `longmemeval_s` split ("Small" — ~20 haystack sessions per question, 500 questions total). This is the standard evaluation split used in the original paper and by comparable systems including MemPalace.
+
+> **Caveat**: The `_s` split has fewer distractor sessions per question than the `_m` (medium) split and is considered the easier evaluation setting. We report on `_s` for comparability with published baselines. Results on `_m` have not yet been evaluated.
 
 | Mode | R@5 | R@10 | NDCG@5 | Avg Latency | LLM Required |
 |:--|:--|:--|:--|:--|:--|
@@ -12,14 +16,15 @@
 | enhanced_v2 | 98.6% | 99.6% | 0.912 | 10.8 ms | ❌ None |
 | rrf (baseline) | 94.2% | 97.4% | 0.856 | 9.5 ms | ❌ None |
 
-### Comparison with other systems
+### Comparison with other systems (longmemeval_s, N=500)
 
-| System | R@5 | LLM in retrieval | Latency |
-|:--|:--|:--|:--|
-| **ERINYS enhanced_v4** | **100.0%** | ❌ No | ~11 ms |
-| MemPalace (raw) | 96.6% | ❌ No | Not published |
-| MemPalace (reranked) | 99.4% | ✅ Yes (LLM rerank) | Seconds |
-| Baseline RAG | ~85% | ❌ No | Varies |
+| System | R@5 | LLM in retrieval | Latency | Source |
+|:--|:--|:--|:--|:--|
+| **ERINYS enhanced_v4** | **100.0%** | ❌ No | ~11 ms | This repo (reproducible) |
+| MemPalace (raw) | 96.6% | ❌ No | — | Self-reported ([README](https://github.com/mempalace/mempalace), same `_s` split) |
+| MemPalace (+ LLM rerank) | 99.4% | ✅ Yes | Seconds | Self-reported ([README](https://github.com/mempalace/mempalace)) |
+
+> **Note on comparison**: MemPalace numbers are cited from their official README as of April 2026. Both ERINYS and MemPalace evaluate on the same `longmemeval_s` split (500 questions). We have not independently reproduced MemPalace's results. A fair comparison would require running both systems on identical hardware with identical dataset preprocessing.
 
 > **Note on 100%**: One question (`eac54add`) in the LongMemEval dataset contains a typo (`buisiness` → `business`) and an incorrect gold session label (off-by-one index error). Our benchmark loader patches this annotation error. See [the full story](docs/benchmark_story_en.md) for details.
 
