@@ -4,7 +4,7 @@
 
 # ERINYS — AIエージェントのための反射記憶
 
-**LongMemEval-Sで検索再現率100%達成。LLM呼び出しゼロ。11msレイテンシ。純粋アルゴリズム。**
+**LongMemEval-S 100% · LoCoMo 94% · ConvoMem 98% — LLM呼び出しゼロ。純粋アルゴリズム。**
 
 [🇬🇧 English](README.md)
 
@@ -24,31 +24,17 @@ ERINYSは番犬だ。覚え、忘れ、疑い、噛む。
 
 ## ベンチマーク
 
-**LongMemEval-S（N=500問）で R@5 100.0% を達成。LLM呼び出しゼロ、平均レイテンシ 11.2ms。**
+全結果、同一モード（`enhanced_v2_boost`）で検索パイプラインに**LLM呼び出しゼロ**。
 
-| システム | R@5 | 検索時LLM | 平均レイテンシ | 出典 |
+| ベンチマーク | N | R@5 | R@10 | 平均レイテンシ |
 |:--|:--|:--|:--|:--|
-| **ERINYS (enhanced_v4)** | **100.0%** | **❌ 不要** | **11.2 ms** | 本リポジトリ |
-| MemPalace（素） | 96.6% | ❌ 不要 | — | [自己報告](https://github.com/mempalace/mempalace) |
-| MemPalace（+ LLMリランク） | 99.4% | ✅ 必要 | 数秒 | [自己報告](https://github.com/mempalace/mempalace) |
+| **LongMemEval-S** | 500 | **100.0%** | **100.0%** | 10.3 ms |
+| **LoCoMo** | 1,982 | **94.0%** | **98.1%** | 6.9 ms |
+| **ConvoMem** | 250 | **97.6%** | — | — |
 
-> **なぜ重要か：** 他のシステムが高精度を出すにはLLMによるクエリ書き換えやリランキングが必須で、検索のたびに数秒のAPIコストがかかる。ERINYSはFTS5 + sqlite-vec + アルゴリズムブーストだけでそれを実現した。APIキー不要。ネットワーク不要。トークン消費ゼロ。エージェントの記憶はSQLiteの速度で動く。
+> **なぜ重要か：** APIキー不要。ネットワーク不要。トークン消費ゼロ。ERINYSはFTS5 + sqlite-vec + アルゴリズムブーストだけでこれらの精度を実現。エージェントの記憶はSQLiteの速度で動く。
 >
-> `longmemeval_s` split（500問、各約20セッション）で評価。MemPalaceの数値は彼らのREADMEからの引用（同一split）。詳細な手法と注意事項は [benchmarks/BENCHMARKS.md](benchmarks/BENCHMARKS.md) を参照。
-
-<details>
-<summary>ERINYSモード別比較</summary>
-
-| モード | R@5 | R@10 | NDCG@5 |
-|:--|:--|:--|:--|
-| **enhanced_v4** | **100.0%** | **100.0%** | 0.943 |
-| enhanced_v3 | 99.8% | 100.0% | 0.938 |
-| enhanced_v2 | 98.6% | 99.6% | 0.912 |
-| rrf（ベースライン） | 94.2% | 97.4% | 0.856 |
-
-</details>
-
-詳細な手法・カテゴリ別内訳・再現手順 → [benchmarks/BENCHMARKS.md](benchmarks/BENCHMARKS.md)
+> LongMemEvalは `longmemeval_s` split（各約20セッション/問）で評価。詳細な手法・カテゴリ別内訳・再現手順 → [benchmarks/BENCHMARKS.md](benchmarks/BENCHMARKS.md)
 
 100%到達までの物語 → [🇯🇵 日本語](docs/benchmark_story_ja.md) / [🇺🇸 English](docs/benchmark_story_en.md)
 
