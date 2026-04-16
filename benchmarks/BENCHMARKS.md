@@ -64,6 +64,22 @@ We evaluate on `_s`. This is the same split used by MemPalace and other publishe
 
 One question (`eac54add`) contains a typo (`buisiness` → `business`) and an incorrect gold session label (off-by-one: should be session index 1, labelled as 0). Our benchmark loader patches this at runtime. We have reported the error to the dataset maintainers.
 
+### Benchmark Integrity
+
+This matters because the community has recently scrutinized LongMemEval 100% claims. Here is exactly what ERINYS does and does not do:
+
+**What we patch:** One dataset annotation error (wrong gold label). This is a correction to the evaluation data, not to the search algorithm. The patch is [visible in the benchmark loader](../benchmarks/longmemeval_bench.py#L67-L74) — 7 lines of code.
+
+**What we do NOT do:**
+- ❌ No LLM reranking at any stage
+- ❌ No algorithm modifications targeting specific failed questions
+- ❌ No held-out / dev split contamination — the same `enhanced_v2_boost` mode runs all three benchmarks unchanged
+- ❌ No top-k inflation — `top_k=10` against ~20 sessions (50% coverage, not trivially guaranteed)
+
+**Without the patch:** The `eac54add` question would score as a miss due to the incorrect gold label, giving 499/500 (99.8% R@5). The search engine still retrieves the correct session — the evaluation just can't verify it because the label points to the wrong session.
+
+The `enhanced_v2_boost` configuration was developed to maximize LoCoMo performance (1,982 questions). That the same configuration also scores 100% on LongMemEval-S (500 questions) is a cross-benchmark validation, not a result of benchmark-specific tuning.
+
 ---
 
 ## LoCoMo (N=1,982)
