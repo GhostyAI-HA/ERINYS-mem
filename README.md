@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/logo.jpg" alt="ERINYS" width="200">
+  <img src="assets/logo.png" alt="ERINYS" width="600">
 </p>
 
 # ERINYS — Reflexive Memory for AI Agents

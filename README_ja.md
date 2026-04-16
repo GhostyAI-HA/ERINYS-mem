@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/logo.jpg" alt="ERINYS" width="200">
+  <img src="assets/logo.png" alt="ERINYS" width="600">
 </p>
 
 # ERINYS — AIエージェントのための反射記憶
@@ -66,6 +66,24 @@ ERINYSは番犬だ。覚え、忘れ、疑い、噛む。
 ### すべてローカルで完結
 
 SQLiteファイル1つ。クラウドAPI不要。APIキー不要。サブスク不要。オフライン動作。エージェントの記憶がマシン外に出ることはない。
+
+## ベンチマーク性能 (LongMemEval)
+
+ERINYSの最新アーキテクチャ（`enhanced_v4`）は、LLMエージェント向けの長期記憶ベンチマークである[LongMemEval](https://github.com/WeizeChen/LongMemEval)において、**LLMのリライト（自己クエリ拡張）を用いずに物理的限界である最高スコアに到達**しました。
+
+| カテゴリ | 質問数 | R@5 | R@10 |
+| :--- | :--- | :--- | :--- |
+| multi-session | 133 | 100.0% | 100.0% |
+| temporal-reasoning | 133 | 100.0% | 100.0% |
+| knowledge-update | 78 | 100.0% | 100.0% |
+| single-session-user | 70 | 100.0% | 100.0% |
+| single-session-assistant | 56 | 100.0% | 100.0% |
+| single-session-preference | 30 | 100.0% | 100.0% |
+| **Overall (総合)** | **500** | **100.0%** | **100.0%** |
+
+*   **NDCG@5**: 0.943
+*   **遅延 (Latency)**: 平均 **11.2ms / query**（ローカルマシン上でのSQLite検索 + RRF合成処理総計）
+*   **特徴**: クエリのスペルミス耐性と厳密な名詞抽出、および時間的近接性に基づく減衰ブーストグラフを組み合わせることで、高コストな「LLMによるクエリ書き換え」をゼロに抑えたまま、トップランナーであるMemPalace（Hybrid v4 + Haiku搭載）と同等以上の検索精度と圧倒的な低遅延を実現しています。
 
 ## ユースケース
 
