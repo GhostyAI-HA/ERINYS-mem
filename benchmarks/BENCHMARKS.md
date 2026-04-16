@@ -113,7 +113,7 @@ This is a harder benchmark than LongMemEval. LoCoMo's temporal-inference questio
 
 ## ConvoMem (N=250)
 
-**Dataset**: [ConvoMem](https://arxiv.org/abs/2505.XXXXX) (Salesforce). 250 items across 5 categories testing different aspects of conversational memory.
+**Dataset**: [ConvoMem](https://github.com/salesforce/ConvoMem) (Salesforce). 250 items across 5 categories testing different aspects of conversational memory.
 
 | Category | Count | R@k | Perfect |
 |:--|:--|:--|:--|
@@ -169,8 +169,8 @@ The cost of this approach: temporal-inference questions (LoCoMo: 76.1%) remain h
 All results are deterministic. Same data + same code = same numbers.
 
 ```bash
-git clone https://github.com/anthropics/erinys-memory.git
-cd erinys-memory
+git clone https://github.com/GhostyAI-HA/ERINYS-mem.git
+cd ERINYS-mem
 pip install -e ".[dev]"
 
 # LongMemEval-S (100.0% R@5)
