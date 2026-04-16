@@ -109,7 +109,7 @@ The console fell silent. A second later, it spat out the results.
 
 ```text
 ======================================================================
-ERINYS LongMemEval Benchmark — Mode: enhanced_v4
+ERINYS LongMemEval Benchmark — Mode: enhanced_v2_boost
 ======================================================================
 
   Overall (500 questions):
