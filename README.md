@@ -20,6 +20,20 @@ That discomfort is what summoned ERINYS.
 
 ERINYS is a guard dog. It remembers, forgets, questions, and bites.
 
+## Benchmarks
+
+**100% R@5 on LongMemEval (500 questions) — with zero LLM calls and 11.2ms average latency.**
+
+| Mode | R@5 | R@10 | NDCG@5 | LLM Required |
+|:--|:--|:--|:--|:--|
+| **enhanced_v4** | **100.0%** | **100.0%** | 0.943 | ❌ None |
+| enhanced_v3 | 99.8% | 100.0% | 0.938 | ❌ None |
+| rrf (baseline) | 94.2% | 97.4% | 0.856 | ❌ None |
+
+Full methodology, per-category breakdown, and reproduction commands → [benchmarks/BENCHMARKS.md](benchmarks/BENCHMARKS.md)
+
+The story of how we got here → [🇯🇵 Japanese](docs/benchmark_story_ja.md) / [🇺🇸 English](docs/benchmark_story_en.md)
+
 ## What Makes ERINYS Different
 
 **Forgetting.** Most memory systems only accumulate. ERINYS decays memories over time following the Ebbinghaus forgetting curve. Old noise sinks. Frequently accessed knowledge floats. Search results stay relevant without manual curation.
