@@ -199,7 +199,7 @@ Every result JSON in `benchmarks/results/` contains per-question scores. You can
 
 ## Landscape
 
-> **Read before quoting this table.** Systems below publish different metrics. Retrieval recall (R@5) and QA accuracy are not comparable — a system can score 100% on one and 40% on the other. We mark where metrics differ.
+> **⚠️ Read before quoting this table.** ERINYS reports **retrieval recall (R@5)**: "Is the correct session in the top-K results?" Other systems report **QA accuracy**: "Did the system generate the correct final answer?" These are fundamentally different metrics. A system can score 100% R@5 and 40% QA accuracy (good retrieval, bad answer generation), or vice versa (bad retrieval, but lucky generation). Rows marked *(QA acc)* use the latter metric and **should not be directly compared** to ERINYS's R@5 scores.
 
 | System | LongMemEval-S R@5 | LoCoMo R@5 | ConvoMem | LLM in Retrieval | Latency |
 |:--|:--|:--|:--|:--|:--|

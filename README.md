@@ -4,7 +4,7 @@
 
 # ERINYS — Reflexive Memory for AI Agents
 
-**100% on LongMemEval-S · 94% on LoCoMo · 98% on ConvoMem — Zero LLM calls. Pure algorithms.**
+**100% Recall@5 on LongMemEval-S (`_s` split) · 94% on LoCoMo · 98% on ConvoMem — Zero LLM calls in the retrieval pipeline.**
 
 [🇯🇵 日本語版 / Japanese](README_ja.md)
 
@@ -22,9 +22,11 @@ That discomfort is what summoned ERINYS.
 
 ERINYS is a guard dog. It remembers, forgets, questions, and bites.
 
+> **Origin:** ERINYS was built as the retrieval layer for [HyperAION](https://github.com/GhostyAI-HA), an AI agent self-improvement framework. It is released as a standalone MCP server so any agent stack can use it independently.
+
 ## Benchmarks
 
-All results use the same mode (`enhanced_v2_boost`) with **zero LLM calls** in the retrieval pipeline.
+All results use the same mode (`enhanced_v2_boost`) with **zero LLM calls** in the retrieval pipeline. Note: higher-level features (Dream Cycle, Distillation) do use an LLM — see below.
 
 | Benchmark | N | R@5 | R@10 | Avg Latency |
 |:--|:--|:--|:--|:--|
@@ -32,19 +34,19 @@ All results use the same mode (`enhanced_v2_boost`) with **zero LLM calls** in t
 | **LoCoMo** | 1,982 | **94.0%** | **98.1%** | 6.9 ms |
 | **ConvoMem** | 250 | **97.6%** | — | — |
 
-> **Why this matters:** No API keys. No network. No tokens burned. ERINYS achieves these results with FTS5 + sqlite-vec + algorithmic boosting alone. Your agent's memory runs at the speed of SQLite.
+> **Why this matters:** No API keys. No network. No tokens burned for retrieval. ERINYS achieves these results with FTS5 + sqlite-vec + algorithmic boosting alone. Your agent's memory searches at the speed of SQLite.
 >
-> LongMemEval evaluated on `longmemeval_s` split (~20 sessions/question). Full methodology, per-category breakdown, and reproduction commands → [benchmarks/BENCHMARKS.md](benchmarks/BENCHMARKS.md)
+> LongMemEval evaluated on `longmemeval_s` split (~20 sessions/question). **Results on the harder `_m` split have not yet been evaluated.** Full methodology, per-category breakdown, and reproduction commands → [benchmarks/BENCHMARKS.md](benchmarks/BENCHMARKS.md)
 
 The story of how we got to 100% → [🇯🇵 Japanese](docs/benchmark_story_ja.md) / [🇺🇸 English](docs/benchmark_story_en.md)
 
 ## What Makes ERINYS Different
 
-**Forgetting.** Most memory systems only accumulate. ERINYS decays memories over time following the Ebbinghaus forgetting curve. Old noise sinks. Frequently accessed knowledge floats. Search results stay relevant without manual curation.
+**Forgetting.** Most memory systems only accumulate. ERINYS decays memories over time following the Ebbinghaus forgetting curve. Old noise sinks. Frequently accessed knowledge floats. Search results stay relevant without manual curation. Decay runs automatically — no LLM needed.
 
-**Distillation.** A specific bugfix ("JWT httpOnly flag was missing") automatically generates three layers: the concrete fact → a reusable pattern ("new endpoints need a security checklist") → a universal principle ("security defaults should be safe without opt-in"). No other memory system does this.
+**Distillation.** A specific bugfix ("JWT httpOnly flag was missing") automatically generates three layers: the concrete fact → a reusable pattern ("new endpoints need a security checklist") → a universal principle ("security defaults should be safe without opt-in"). No other memory system does this. ⚠️ *Distillation requires an LLM call to generate the abstract/meta layers.*
 
-**Dream Cycle.** Two memories are fed to an LLM: "is there a connection?" Candidate pairs are selected by semantic similarity — close enough to be related (cosine > 0.65), far enough to not be redundant (< 0.90). Scheduled overnight via cron, it finds connections you'd never think to look for. No magic — just automated note comparison at scale.
+**Dream Cycle.** Two memories are fed to an LLM: "is there a connection?" Candidate pairs are selected by semantic similarity — close enough to be related (cosine > 0.65), far enough to not be redundant (< 0.90). Currently triggered manually via `erinys_dream`. ⚠️ *Dream Cycle requires LLM calls — it is not part of the zero-LLM retrieval pipeline.*
 
 ## Design Philosophy
 
@@ -265,12 +267,14 @@ Add to `~/.gemini/antigravity/settings.json` under `mcpServers`:
 
 ## Roadmap
 
-- [ ] Dream Daemon — Background auto-execution of Dream Cycle
 - [x] Auto-Distill on Save — Trigger 3-granularity distillation on every save
+- [ ] Dream Daemon — Background auto-execution of Dream Cycle (currently manual trigger only)
 - [ ] Auto-Prune — GC decayed observations when DB exceeds size threshold
 - [ ] Cron-ready CLI — `erinys dream --max 10` for scheduled overnight synthesis
 - [ ] PyPI package — `pip install erinys-memory`
 - [ ] Multi-agent support — Scoped memory per agent identity
+- [ ] LongMemEval `_m` split evaluation
+- [ ] GitHub Release tags + CI badges
 
 ## License
 
