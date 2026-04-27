@@ -559,11 +559,186 @@ def search_enhanced(db, query, top_k=10):
     )
 
 
+def _extract_entities(query: str) -> list[str]:
+    """Extract proper nouns (capitalized words not at sentence start)."""
+    words = query.split()
+    entities = []
+    for i, w in enumerate(words):
+        cleaned = re.sub(r"[^a-zA-Z']", "", w)
+        if not cleaned or len(cleaned) <= 1:
+            continue
+        if cleaned[0].isupper() and i > 0:
+            low = cleaned.lower()
+            if low not in _INFERENCE_FILLER and low not in {'what', 'when', 'where', 'who', 'why', 'how', 'would', 'could', 'does', 'did', 'has', 'is', 'are'}:
+                entities.append(cleaned)
+    return entities
+
+
+def _focus_inference_preserve_entities(query: str) -> str:
+    """Strip inference filler but preserve entity names."""
+    entities = _extract_entities(query)
+    tokens = query.split()
+    focused = [t for t in tokens if t.lower().rstrip('.,?!') not in _INFERENCE_FILLER]
+    result = ' '.join(focused).strip()
+    result = re.sub(r'\s+', ' ', result)
+    if len(result.split()) < 2:
+        result = query
+    for ent in entities:
+        if ent.lower() not in result.lower():
+            result = f"{ent} {result}"
+    return result
+
+
+def search_sv_boost(db, query, top_k=10):
+    """State Vector enhanced: entity-aware multi-perspective search.
+    
+    Improvements over enhanced_v2_boost:
+    1. Entity names preserved in focused embeddings
+    2. Entity-perspective embedding for multi-hop queries
+    3. Adaptive proper noun boost (1.5x for inference, 1.0x otherwise)
+    4. Wider search for entity-dispersed results
+    """
+    query_emb = embedding_engine.embed(query)
+    entities = _extract_entities(query)
+    is_inference = _is_inference_query(query)
+    is_temporal = _is_temporal_query(query)
+    
+    focused_emb = None
+    entity_emb = None
+    
+    if is_temporal:
+        focused_text = focus_query_for_embedding(query)
+        if focused_text != query:
+            focused_emb = embedding_engine.embed(focused_text)
+    elif is_inference:
+        focused_text = _focus_inference_preserve_entities(query)
+        if focused_text != query:
+            focused_emb = embedding_engine.embed(focused_text)
+    
+    if entities:
+        entity_query = ' '.join(entities)
+        content_keywords = [t for t in query.split() if t.lower().rstrip('.,?!') not in _INFERENCE_FILLER and t not in entities]
+        top_content = content_keywords[:3]
+        entity_perspective = f"{entity_query} {' '.join(top_content)}"
+        entity_emb = embedding_engine.embed(entity_perspective)
+    
+    pn_boost = 1.5 if is_inference else (1.0 if entities else 0.7)
+    kw_boost = 0.6 if is_inference else 0.5
+    bg_boost = 0.8 if is_inference else 0.7
+    
+    search_limit = 150 if is_inference else (75 if is_temporal else 50)
+    
+    base_kwargs = dict(
+        db=db, query=query, project="locomo", limit=max(top_k, search_limit),
+        proper_noun_boost=pn_boost, keyword_boost=kw_boost,
+        bigram_boost=bg_boost, temporal_content_boost=0.5
+    )
+    
+    if is_inference and (focused_emb or entity_emb):
+        merged = {}
+        
+        res_original = rrf_hybrid_search(query_embedding=query_emb, **base_kwargs)
+        for r in res_original:
+            rid = r['id']
+            r_copy = r.copy()
+            s = r.get('rrf_score', r.get('score', 0)) * 0.3
+            r_copy['score'] = s
+            if 'rrf_score' in r_copy:
+                r_copy['rrf_score'] = s
+            merged[rid] = r_copy
+        
+        if focused_emb:
+            focused_kwargs = base_kwargs.copy()
+            focused_kwargs['keyword_boost'] = 0.0
+            res_focused = rrf_hybrid_search(query_embedding=focused_emb, **focused_kwargs)
+            for r in res_focused:
+                rid = r['id']
+                s = r.get('rrf_score', r.get('score', 0)) * 0.8
+                if rid in merged:
+                    merged[rid]['score'] += s
+                    if 'rrf_score' in merged[rid]:
+                        merged[rid]['rrf_score'] += s
+                else:
+                    r_copy = r.copy()
+                    r_copy['score'] = s
+                    if 'rrf_score' in r_copy:
+                        r_copy['rrf_score'] = s
+                    merged[rid] = r_copy
+        
+        if entity_emb:
+            entity_kwargs = base_kwargs.copy()
+            entity_kwargs['proper_noun_boost'] = 2.0
+            entity_kwargs['keyword_boost'] = 0.3
+            res_entity = rrf_hybrid_search(query_embedding=entity_emb, **entity_kwargs)
+            for r in res_entity:
+                rid = r['id']
+                s = r.get('rrf_score', r.get('score', 0)) * 0.5
+                if rid in merged:
+                    merged[rid]['score'] += s
+                    if 'rrf_score' in merged[rid]:
+                        merged[rid]['rrf_score'] += s
+                else:
+                    r_copy = r.copy()
+                    r_copy['score'] = s
+                    if 'rrf_score' in r_copy:
+                        r_copy['rrf_score'] = s
+                    merged[rid] = r_copy
+        
+        res = list(merged.values())
+        res.sort(key=lambda x: -x.get('rrf_score', x.get('score', 0)))
+        return res
+    
+    elif entities and not is_inference:
+        merged = {}
+        
+        res_original = rrf_hybrid_search(
+            query_embedding=query_emb,
+            focused_embedding=focused_emb,
+            **base_kwargs
+        )
+        for r in res_original:
+            rid = r['id']
+            r_copy = r.copy()
+            s = r.get('rrf_score', r.get('score', 0)) * 0.7
+            r_copy['score'] = s
+            if 'rrf_score' in r_copy:
+                r_copy['rrf_score'] = s
+            merged[rid] = r_copy
+        
+        if entity_emb:
+            entity_kwargs = base_kwargs.copy()
+            entity_kwargs['proper_noun_boost'] = 1.5
+            res_entity = rrf_hybrid_search(query_embedding=entity_emb, **entity_kwargs)
+            for r in res_entity:
+                rid = r['id']
+                s = r.get('rrf_score', r.get('score', 0)) * 0.4
+                if rid in merged:
+                    merged[rid]['score'] += s
+                    if 'rrf_score' in merged[rid]:
+                        merged[rid]['rrf_score'] += s
+                else:
+                    r_copy = r.copy()
+                    r_copy['score'] = s
+                    if 'rrf_score' in r_copy:
+                        r_copy['rrf_score'] = s
+                    merged[rid] = r_copy
+        
+        res = list(merged.values())
+        res.sort(key=lambda x: -x.get('rrf_score', x.get('score', 0)))
+        return res
+    
+    else:
+        return rrf_hybrid_search(
+            query_embedding=query_emb, focused_embedding=focused_emb, **base_kwargs
+        )
+
+
 SEARCH_FNS = {
     "rrf": search_rrf,
     "enhanced": search_enhanced,
     "enhanced_v2": search_enhanced_v2,
     "enhanced_v2_boost": search_enhanced_v2_boost,
+    "sv_boost": search_sv_boost,
 }
 
 

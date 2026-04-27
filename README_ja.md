@@ -176,6 +176,7 @@ erinys_export(format="markdown")
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -e ".[dev]"
+ollama pull gemma4:e4b
 
 # MCPサーバーとして起動（stdio）
 python -m erinys_memory.server
@@ -224,6 +225,8 @@ PYTHONPATH=src pytest tests/ -v
 |:--|:--|:--|
 | `ERINYS_DB_PATH` | `~/.erinys/memory.db` | SQLiteデータベースのパス |
 | `ERINYS_EMBEDDING_MODEL` | `BAAI/bge-small-en-v1.5` | fastembed埋め込みモデル |
+| `ERINYS_DISTILL_MODEL` | `gemma4:e4b` | 自動蒸留に使うローカルOllamaモデル |
+| `ERINYS_DISTILL_ENDPOINT` | `http://localhost:11434/api/generate` | ローカルOllama生成エンドポイント |
 
 ## Tools (25)
 

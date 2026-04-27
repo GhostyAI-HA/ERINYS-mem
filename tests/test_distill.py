@@ -86,6 +86,24 @@ def _make_llm_response(concrete: str, abstract: str, meta: str) -> bytes:
     return outer.encode("utf-8")
 
 
+def _make_llm_response_with_causal(
+    concrete: str,
+    abstract: str,
+    meta: str,
+    fail: str,
+    work: str,
+) -> bytes:
+    inner = json.dumps({
+        "concrete": concrete,
+        "abstract": abstract,
+        "meta": meta,
+        "what_made_it_fail": fail,
+        "what_made_it_work": work,
+    })
+    outer = json.dumps({"response": inner})
+    return outer.encode("utf-8")
+
+
 def _mock_urlopen_success(response_bytes: bytes):
     mock_resp = MagicMock()
     mock_resp.read.return_value = response_bytes
@@ -102,6 +120,19 @@ class TestParseResponse:
         assert result["concrete"] == "fact"
         assert result["abstract"] == "pattern"
         assert result["meta"] == "lesson"
+
+    def test_valid_json_with_causal_keys(self):
+        raw = json.dumps({
+            "concrete": "fact",
+            "abstract": "pattern",
+            "meta": "lesson",
+            "what_made_it_fail": "",
+            "what_made_it_work": "guardrails made it stick",
+        })
+        result = _parse_llm_response(raw)
+        assert result is not None
+        assert result["what_made_it_fail"] == ""
+        assert result["what_made_it_work"] == "guardrails made it stick"
 
     def test_json_with_markdown_fences(self):
         raw = '```json\n{"concrete": "fact", "abstract": "pattern", "meta": "lesson"}\n```'
@@ -209,7 +240,9 @@ class TestTemplateDistillations:
         assert "concrete" in result
         assert "abstract" in result
         assert "meta" in result
-        assert all(isinstance(v, str) and v for v in result.values())
+        assert result["what_made_it_fail"] == ""
+        assert result["what_made_it_work"]
+        assert all(isinstance(result[k], str) and result[k] for k in LEVELS)
 
 
 class TestDistillObservation:
@@ -272,6 +305,29 @@ class TestDistillObservation:
             meta = record.get("metadata") or {}
             assert "distill_method" in meta
             assert meta["distill_method"] in ("llm", "template_fallback")
+
+    def test_three_key_llm_response_gets_causal_fallback(self, db, engine, config):
+        obs_id = _insert_observation(db, engine)
+        response_bytes = _make_llm_response("fact", "pattern", "lesson")
+        mock_resp = _mock_urlopen_success(response_bytes)
+        with patch("erinys_memory.distill.urllib.request.urlopen", return_value=mock_resp):
+            result = distill_observation(db, obs_id, "meta", config)
+        for record in result["created"]:
+            meta = record.get("metadata") or {}
+            assert meta.get("distill_method") == "llm"
+            assert meta.get("what_made_it_work")
+
+    def test_llm_causal_keys_are_preserved(self, db, engine, config):
+        obs_id = _insert_observation(db, engine)
+        response_bytes = _make_llm_response_with_causal(
+            "fact", "pattern", "lesson", "", "explicit success factor",
+        )
+        mock_resp = _mock_urlopen_success(response_bytes)
+        with patch("erinys_memory.distill.urllib.request.urlopen", return_value=mock_resp):
+            result = distill_observation(db, obs_id, "meta", config)
+        for record in result["created"]:
+            meta = record.get("metadata") or {}
+            assert meta.get("what_made_it_work") == "explicit success factor"
 
     def test_edges_created_for_all_levels(self, db, engine, config):
         obs_id = _insert_observation(db, engine)
@@ -362,7 +418,7 @@ class TestDistillObservation:
 class TestConfig:
     def test_default_config_has_distill_fields(self):
         config = ErinysConfig(db_path=":memory:", db_backup_on_init=False)
-        assert config.distill_model == "gemma3:4b"
+        assert config.distill_model == "gemma4:e4b"
         assert "localhost" in config.distill_endpoint
         assert config.distill_timeout > 0
         assert isinstance(config.distill_use_llm, bool)
@@ -383,4 +439,3 @@ class TestConfig:
                 distill_endpoint="http://remote-server.com/api/generate",
             )
             assert any("never leaves your machine" in str(warning.message) for warning in w)
-

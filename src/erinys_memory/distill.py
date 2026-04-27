@@ -28,7 +28,9 @@ Rules:
 - "concrete": 2-3 sentences. Summarize the specific facts (WHO, WHAT, WHERE, WHY).
 - "abstract": 1 paragraph. Extract the reusable pattern or anti-pattern as a general principle.
 - "meta": 1 sentence. State the meta-lesson about how to learn, decide, or improve processes.
-- Return ONLY valid JSON with exactly these 3 keys. No markdown fences.
+- "what_made_it_fail": 1 sentence. If the observation describes a failure or anti-pattern, state the specific causal factor that turned a near-miss into an actual failure. If not applicable, return empty string.
+- "what_made_it_work": 1 sentence. If the observation describes a success or good pattern, state the specific factor that made it succeed where alternatives failed. If not applicable, return empty string.
+- Return ONLY valid JSON with exactly these 5 keys. No markdown fences.
 
 Observation Title: {title}
 Observation Content:
@@ -156,11 +158,37 @@ def _meta_content_template(source: dict[str, Any]) -> str:
     return f"Meta lesson: turn observations about {subject} into reusable decision heuristics across projects and sessions."
 
 
+def _exploitability_template(source: dict[str, Any]) -> tuple[str, str]:
+    is_anti = source.get("is_anti_pattern") or source.get("type") == "anti_pattern"
+    keywords = _extract_keywords(f"{source['title']} {source['content']}")
+    subject = ", ".join(keywords[:3]) or str(source["title"])
+    if is_anti:
+        return (f"The failure in {subject} became actual because no structural guard prevented it.", "")
+    return ("", f"The approach for {subject} succeeded because a structural mechanism enforced the correct path.")
+
+
 def _template_distillations(source: dict[str, Any]) -> dict[str, str]:
+    fail, work = _exploitability_template(source)
     return {
         "concrete": _concrete_content_template(source),
         "abstract": _abstract_content_template(source),
         "meta": _meta_content_template(source),
+        "what_made_it_fail": fail,
+        "what_made_it_work": work,
+    }
+
+
+def _causal_factors_with_fallback(
+    llm_result: dict[str, str],
+    template_result: dict[str, str],
+) -> dict[str, str]:
+    return {
+        "what_made_it_fail": llm_result.get(
+            "what_made_it_fail", template_result["what_made_it_fail"]
+        ),
+        "what_made_it_work": llm_result.get(
+            "what_made_it_work", template_result["what_made_it_work"]
+        ),
     }
 
 
@@ -188,7 +216,11 @@ def _parse_llm_response(raw: str) -> dict[str, str] | None:
         return None
     if not all(isinstance(parsed[k], str) and parsed[k].strip() for k in required):
         return None
-    return {k: str(parsed[k]).strip() for k in required}
+    result = {k: str(parsed[k]).strip() for k in required}
+    for causal_key in ("what_made_it_fail", "what_made_it_work"):
+        if causal_key in parsed and isinstance(parsed[causal_key], str):
+            result[causal_key] = parsed[causal_key].strip()
+    return result
 
 
 def _llm_generate(config: ErinysConfig, title: str, content: str, obs_type: str) -> dict[str, str] | None:
@@ -233,6 +265,7 @@ def _build_distill_metadata(
     level: str,
     method: str,
     error: str | None = None,
+    causal_factors: dict[str, str] | None = None,
 ) -> dict[str, object]:
     base = dict(source.get("metadata") or {})
     base.pop("distill_error", None)
@@ -241,6 +274,10 @@ def _build_distill_metadata(
     base["distill_method"] = method
     if error is not None:
         base["distill_error"] = error
+    if causal_factors:
+        for k, v in causal_factors.items():
+            if v:
+                base[k] = v
     return base
 
 
@@ -252,6 +289,7 @@ def _create_distillation_record(
     content: str,
     method: str,
     error: str | None = None,
+    causal_factors: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     is_anti_pattern, is_pattern = _distilled_flags(source, level)
     raw_id = int(raw_source["id"])
@@ -266,7 +304,7 @@ def _create_distillation_record(
         "distillation_level": level,
         "distilled_from": raw_id,
         "source": "distill",
-        "metadata": _build_distill_metadata(source, level, method, error),
+        "metadata": _build_distill_metadata(source, level, method, error, causal_factors),
         "session_id": raw_source["session_id"],
     }
     embedding = embedding_engine.embed(str(payload["content"]))
@@ -303,13 +341,19 @@ def distill_observation(
     method = "llm" if llm_result is not None else "template_fallback"
     error = None if llm_result is not None else "llm_unavailable"
 
+    template_result = _template_distillations(raw_source)
     if llm_result is None:
-        llm_result = _template_distillations(raw_source)
+        llm_result = template_result
+
+    causal_factors = _causal_factors_with_fallback(llm_result, template_result)
 
     created: list[dict[str, Any]] = []
     for next_level in levels_needed:
-        content = llm_result.get(next_level, _template_distillations(raw_source)[next_level])
-        record = _create_distillation_record(db, source, raw_source, next_level, content, method, error)
+        content = llm_result.get(next_level, template_result[next_level])
+        record = _create_distillation_record(
+            db, source, raw_source, next_level, content, method, error,
+            causal_factors=causal_factors,
+        )
         created.append(record)
 
     final = created[-1] if created else source

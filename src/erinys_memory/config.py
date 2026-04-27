@@ -42,7 +42,7 @@ class ErinysConfig:
     redact_secret_patterns: bool = True
     auto_distill_on_save: bool = os.environ.get("ERINYS_AUTO_DISTILL", "1") != "0"
 
-    distill_model: str = os.environ.get("ERINYS_DISTILL_MODEL", "gemma3:4b")
+    distill_model: str = os.environ.get("ERINYS_DISTILL_MODEL", "gemma4:e4b")
     distill_endpoint: str = os.environ.get(
         "ERINYS_DISTILL_ENDPOINT", "http://localhost:11434/api/generate"
     )
