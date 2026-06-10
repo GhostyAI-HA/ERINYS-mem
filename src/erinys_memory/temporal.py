@@ -258,13 +258,9 @@ def conflict_check(
         """,
         [source_blob, neighbor_count],
     ).fetchall()
+    candidate_ids = [int(row[0]) for row in rows if int(row[0]) != observation_id]
     conflicts: list[dict[str, Any]] = []
-    for row in rows:
-        candidate_id = int(row[0])
-        if candidate_id == observation_id:
-            continue
-        candidate = _fetch_observation(db, candidate_id)
-        candidate_vector = _vector_from_blob(_fetch_embedding_blob(db, candidate_id))
+    for candidate, candidate_vector in _fetch_candidates_batch(db, candidate_ids):
         similarity = _cosine_similarity(source_vector, candidate_vector)
         if similarity < similarity_threshold:
             continue
@@ -273,3 +269,24 @@ def conflict_check(
         conflicts.append({"observation": candidate, "similarity": similarity})
     conflicts.sort(key=lambda item: float(item["similarity"]), reverse=True)
     return conflicts[:limit]
+
+
+# 候補 observation と embedding を 1 クエリで取得する（N+1 回避）。
+def _fetch_candidates_batch(
+    db: sqlite3.Connection, candidate_ids: list[int]
+) -> list[tuple[dict[str, Any], list[float]]]:
+    if not candidate_ids:
+        return []
+    rows = db.execute(
+        f"""SELECT o.*, v.embedding AS _embedding
+        FROM observations o
+        JOIN vec_observations v ON v.rowid = o.id
+        WHERE o.id IN ({",".join("?" for _ in candidate_ids)})
+        """,
+        candidate_ids,
+    ).fetchall()
+    pairs = []
+    for row in rows:
+        record = _observation_record(row)
+        pairs.append((record, _vector_from_blob(bytes(record.pop("_embedding")))))
+    return pairs

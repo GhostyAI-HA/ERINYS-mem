@@ -10,10 +10,9 @@ from typing import Mapping
 import sqlite3
 
 from .config import ErinysConfig
-from .embedding import EmbeddingEngine, serialize_f32
+from .embedding import EMBEDDING_MODEL, EmbeddingEngine, serialize_f32
 
 SCHEMA_PATH = Path(__file__).with_name("schema.sql")
-embedding_engine = EmbeddingEngine()
 OBS_INSERT_SQL = """
 INSERT INTO observations(
     title,
@@ -81,6 +80,28 @@ UPDATABLE_FIELDS = {
     "metadata",
     "session_id",
 }
+
+
+class LazyEmbeddingEngine:
+    """fastembed を実際に必要になるまで初期化しない薄いproxy。"""
+
+    def __init__(self) -> None:
+        self.model_name = EMBEDDING_MODEL
+        self._engine: EmbeddingEngine | None = None
+
+    def _get_engine(self) -> EmbeddingEngine:
+        if self._engine is None:
+            self._engine = EmbeddingEngine(self.model_name)
+        return self._engine
+
+    def embed(self, text: str) -> list[float]:
+        return self._get_engine().embed(text)
+
+    def embed_batch(self, texts: list[str]) -> list[list[float]]:
+        return self._get_engine().embed_batch(texts)
+
+
+embedding_engine = LazyEmbeddingEngine()
 
 
 def _adapt_datetime(value: datetime) -> str:
@@ -172,6 +193,10 @@ def get_db(config: ErinysConfig | None = None) -> sqlite3.Connection:
     db.row_factory = sqlite3.Row
     db.execute("PRAGMA foreign_keys = ON")
     db.execute("PRAGMA busy_timeout = 5000")
+    # WAL + NORMAL: commit 毎の fsync を削減（WAL では NORMAL でも耐久性は実用十分）
+    db.execute("PRAGMA journal_mode = WAL")
+    db.execute("PRAGMA synchronous = NORMAL")
+    db.execute("PRAGMA cache_size = -16000")  # 16MB page cache
     _load_sqlite_vec(db)
     return db
 
@@ -184,10 +209,57 @@ def init_db(config: ErinysConfig | None = None) -> sqlite3.Connection:
     ).fetchone()
     if exists is None:
         db.executescript(SCHEMA_PATH.read_text(encoding="utf-8"))
+    else:
+        _migrate(db)
     validate_db_metadata(db, config)
     reconcile_vec_observations(db)
     db.commit()
     return db
+
+
+def _migrate(db: sqlite3.Connection) -> None:
+    """Run incremental schema migrations based on schema_version."""
+    row = db.execute("SELECT MAX(version) AS v FROM schema_version").fetchone()
+    current_version = int(row["v"]) if row and row["v"] is not None else 1
+
+    if current_version < 2:
+        # v2: Add causal/entity/temporal to edges CHECK constraint
+        # SQLite does not support ALTER TABLE ... CHECK, so recreate the table
+        # Also add metadata column to collisions for collision_score persistence
+        db.executescript("""
+            CREATE TABLE edges_v2 (
+              id          INTEGER PRIMARY KEY AUTOINCREMENT,
+              source_id   INTEGER NOT NULL REFERENCES observations(id) ON DELETE CASCADE,
+              target_id   INTEGER NOT NULL REFERENCES observations(id) ON DELETE CASCADE,
+              relation    TEXT    NOT NULL
+                          CHECK(relation IN (
+                            'relates_to','depends_on','implements',
+                            'references','similar_to','contains',
+                            'contradicts','supersedes','distilled_from',
+                            'causal','entity','temporal'
+                          )),
+              weight      REAL    NOT NULL DEFAULT 1.0
+                          CHECK(weight >= 0.0 AND weight <= 1.0),
+              metadata    TEXT CHECK(metadata IS NULL OR json_valid(metadata)),
+              created_at  DATETIME NOT NULL DEFAULT (datetime('now')),
+              UNIQUE(source_id, target_id, relation)
+            );
+            INSERT INTO edges_v2 SELECT * FROM edges;
+            DROP TABLE edges;
+            ALTER TABLE edges_v2 RENAME TO edges;
+            CREATE INDEX idx_edges_source   ON edges(source_id);
+            CREATE INDEX idx_edges_target   ON edges(target_id);
+            CREATE INDEX idx_edges_relation ON edges(relation);
+            INSERT INTO schema_version(version) VALUES (2);
+        """)
+        # Add metadata column to collisions if not present
+        cols = [row[1] for row in db.execute("PRAGMA table_info(collisions)").fetchall()]
+        if "metadata" not in cols:
+            db.execute(
+                "ALTER TABLE collisions ADD COLUMN metadata TEXT "
+                "CHECK(metadata IS NULL OR json_valid(metadata))"
+            )
+            db.commit()
 
 
 def validate_db_metadata(db: sqlite3.Connection, config: ErinysConfig) -> None:

@@ -8,7 +8,9 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 import sqlite3
+import struct
 import urllib.request
 import urllib.error
 from typing import Any
@@ -74,6 +76,22 @@ def _fetch_observation(db: sqlite3.Connection, obs_id: int) -> dict[str, Any]:
     return _observation_record(row)
 
 
+# raw source の embedding は vec_observations に保存済み。再計算せず取り出す。
+# 取得できない場合（テスト用 DB 等）は embed にフォールバックする。
+def _source_embedding(db: sqlite3.Connection, raw_source: dict[str, Any]) -> list[float]:
+    try:
+        row = db.execute(
+            "SELECT embedding FROM vec_observations WHERE rowid = ?",
+            [int(raw_source["id"])],
+        ).fetchone()
+    except sqlite3.OperationalError:
+        row = None
+    if row is not None:
+        blob = bytes(row[0])
+        return list(struct.unpack(f"<{len(blob) // 4}f", blob))
+    return embedding_engine.embed(str(raw_source["content"]))
+
+
 def _resolve_raw_source(db: sqlite3.Connection, source: dict[str, Any], max_hops: int = 10) -> dict[str, Any]:
     current = source
     for _ in range(max_hops):
@@ -99,6 +117,76 @@ def _extract_keywords(text: str) -> list[str]:
         seen.add(token)
         ordered.append(token)
     return ordered[:5]
+
+
+def _cosine_similarity(left: list[float], right: list[float]) -> float:
+    """Compute cosine similarity between two vectors."""
+    dot = sum(a * b for a, b in zip(left, right))
+    left_norm = math.sqrt(sum(v * v for v in left))
+    right_norm = math.sqrt(sum(v * v for v in right))
+    if left_norm == 0.0 or right_norm == 0.0:
+        return 0.0
+    return dot / (left_norm * right_norm)
+
+
+def _compute_distillation_quality(
+    source_content: str,
+    distilled_content: str,
+    source_embedding: list[float],
+    distilled_embedding: list[float],
+    level: str = "concrete",
+) -> dict[str, float]:
+    """Compute quality metrics for a distillation.
+
+    Returns dict with:
+    - semantic_preservation: cosine similarity between source and distilled embeddings (0-1)
+    - keyword_retention: fraction of source keywords preserved in distilled content (0-1)
+    - compression_ratio: len(distilled) / len(source)
+    - quality_score: weighted average (0-1, >= 0.7 is good)
+
+    W6: Level-aware weights — meta emphasizes semantic, concrete emphasizes keywords.
+    W5: Compression is scored as distance from ideal ratio per level.
+    """
+    semantic_preservation = max(0.0, _cosine_similarity(source_embedding, distilled_embedding))
+
+    source_keywords = _extract_keywords(source_content)
+    if source_keywords:
+        distilled_lower = distilled_content.lower()
+        retained = sum(1 for kw in source_keywords if kw in distilled_lower)
+        keyword_retention = retained / len(source_keywords)
+    else:
+        keyword_retention = 1.0
+
+    source_len = len(source_content)
+    compression_ratio = len(distilled_content) / source_len if source_len > 0 else 0.0
+
+    # W5: Score compression as closeness to ideal ratio per level
+    # Ideal: concrete ≈ 0.6-0.8, abstract ≈ 0.3-0.5, meta ≈ 0.1-0.3
+    _IDEAL_RATIOS = {"concrete": 0.7, "abstract": 0.4, "meta": 0.2}
+    ideal = _IDEAL_RATIOS.get(level, 0.5)
+    compression_score = max(0.0, 1.0 - abs(compression_ratio - ideal) / ideal)
+
+    # W6: Level-aware quality weights
+    _LEVEL_WEIGHTS = {
+        "concrete": {"semantic": 0.40, "keyword": 0.40, "compression": 0.20},
+        "abstract": {"semantic": 0.50, "keyword": 0.30, "compression": 0.20},
+        "meta":     {"semantic": 0.60, "keyword": 0.20, "compression": 0.20},
+    }
+    weights = _LEVEL_WEIGHTS.get(level, {"semantic": 0.50, "keyword": 0.30, "compression": 0.20})
+
+    quality_score = (
+        weights["semantic"] * semantic_preservation
+        + weights["keyword"] * keyword_retention
+        + weights["compression"] * compression_score
+    )
+
+    return {
+        "semantic_preservation": round(semantic_preservation, 4),
+        "keyword_retention": round(keyword_retention, 4),
+        "compression_ratio": round(compression_ratio, 4),
+        "compression_score": round(compression_score, 4),
+        "quality_score": round(quality_score, 4),
+    }
 
 
 def _first_sentence(text: str) -> str:
@@ -290,9 +378,31 @@ def _create_distillation_record(
     method: str,
     error: str | None = None,
     causal_factors: dict[str, str] | None = None,
+    source_embedding: list[float] | None = None,
 ) -> dict[str, Any]:
     is_anti_pattern, is_pattern = _distilled_flags(source, level)
     raw_id = int(raw_source["id"])
+    metadata = _build_distill_metadata(source, level, method, error, causal_factors)
+
+    source_content = str(raw_source["content"])
+    if source_embedding is None:
+        source_embedding = _source_embedding(db, raw_source)
+    distilled_embedding = embedding_engine.embed(content)
+
+    quality = _compute_distillation_quality(
+        source_content, content, source_embedding, distilled_embedding,
+        level=level,
+    )
+    metadata["distillation_quality"] = quality
+    if quality["quality_score"] < 0.4:
+        logger.warning(
+            "Low distillation quality %.2f for '%s' level=%s (method=%s)",
+            quality["quality_score"],
+            raw_source.get("title", "?"),
+            level,
+            method,
+        )
+
     payload = {
         "title": _distilled_title(str(raw_source["title"]), level),
         "content": content,
@@ -304,12 +414,19 @@ def _create_distillation_record(
         "distillation_level": level,
         "distilled_from": raw_id,
         "source": "distill",
-        "metadata": _build_distill_metadata(source, level, method, error, causal_factors),
+        "metadata": metadata,
         "session_id": raw_source["session_id"],
     }
-    embedding = embedding_engine.embed(str(payload["content"]))
-    new_id = insert_observation_with_embedding(db, payload, serialize_f32(embedding))
-    create_edge(db, new_id, raw_id, "distilled_from", 1.0, {"level": level})
+    # W7: Wrap insert + edge creation in single transaction via insert_observation_with_embedding
+    # (which already uses BEGIN IMMEDIATE). create_edge commits separately, so we catch failures.
+    new_id = insert_observation_with_embedding(db, payload, serialize_f32(distilled_embedding))
+    try:
+        create_edge(db, new_id, raw_id, "distilled_from", 1.0, {"level": level})
+    except Exception as exc:
+        logger.warning(
+            "Failed to create distilled_from edge %d→%d: %s; observation saved.",
+            new_id, raw_id, exc,
+        )
     return _fetch_observation(db, new_id)
 
 
@@ -347,12 +464,14 @@ def distill_observation(
 
     causal_factors = _causal_factors_with_fallback(llm_result, template_result)
 
+    source_embedding = _source_embedding(db, raw_source)
     created: list[dict[str, Any]] = []
     for next_level in levels_needed:
         content = llm_result.get(next_level, template_result[next_level])
         record = _create_distillation_record(
             db, source, raw_source, next_level, content, method, error,
             causal_factors=causal_factors,
+            source_embedding=source_embedding,
         )
         created.append(record)
 

@@ -4,7 +4,7 @@
 
 # ERINYS — Reflexive Memory for AI Agents
 
-**100% Recall@5 on LongMemEval-S (`_s` split) · 94% on LoCoMo · 98% on ConvoMem — Zero LLM calls in the retrieval pipeline.**
+**v0.2.0** · **100% Recall@5 on LongMemEval-S (`_s` split) · 94% on LoCoMo · 98% on ConvoMem — Zero LLM calls in the retrieval pipeline.**
 
 [🇯🇵 日本語版 / Japanese](README_ja.md)
 
@@ -22,7 +22,43 @@ That discomfort is what summoned ERINYS.
 
 ERINYS is a guard dog. It remembers, forgets, questions, and bites.
 
-> **Origin:** ERINYS was built as the retrieval layer for [HyperAION](https://github.com/GhostyAI-HA), an AI agent self-improvement framework. It is released as a standalone MCP server so any agent stack can use it independently.
+> **Origin:** ERINYS was built as the retrieval layer for [HyperAION](https://aionexo.com/hyperaion/), an AI agent self-improvement framework. It is released as a standalone MCP server so any agent stack can use it independently.
+
+## CLI-First Operations
+
+ERINYS automation should use the JSON CLI as the primary control surface. MCP remains available as an agent-facing adapter, but scheduled jobs, CI, recovery, and manual verification should call the CLI so failures have stable exit codes and machine-readable output. This first CLI phase bypasses the MCP protocol while reusing the existing `erinys_memory.server` functions; the next refactor should split those functions into a protocol-neutral service layer.
+
+From the KG_Antigravity workspace:
+
+```bash
+python3 .agent/scripts/erinys_cli.py health --project KG_Antigravity --json          # light: no venv needed; cannot verify vectors (may report degraded)
+python3 .agent/scripts/erinys_cli.py health --project KG_Antigravity --deep --json   # authoritative: server import + search smoke test
+python3 .agent/scripts/erinys_cli.py context --project KG_Antigravity --limit 10 --readonly --json
+python3 .agent/scripts/erinys_cli.py search "Buffer DNS" --project KG_Antigravity --limit 5 --readonly --json
+python3 .agent/scripts/erinys_cli.py undistilled --project KG_Antigravity --limit 10 --json
+python3 .agent/scripts/erinys_cli.py save --title "Decision" --content "What: ..." --type decision --project KG_Antigravity --json
+python3 .agent/scripts/erinys_cli.py distill 123 --level meta --json
+```
+
+`--readonly` reads via SQLite `mode=ro` (keyword search only, no migration / audit-log writes, no venv required). Drop it when semantic search is needed. `dream` / `prune` operate on the whole database across ALL projects; `prune --execute` additionally requires `--confirm-global`. Usage errors also emit JSON (`error.code: "USAGE"`, exit code 2).
+
+When running inside the ERINYS package directly, use:
+
+```bash
+python -m erinys_memory.cli health --project KG_Antigravity --json
+```
+
+## What's New in v0.2.0
+
+**MAGMA improvements** — five enhancements from Growth Radar analysis:
+
+- **Adaptive Retrieval** — Query complexity classification (L1/L2/L3) automatically adjusts FTS/vec search weights. CJK queries default to vector-heavy mode, bypassing FTS5 porter tokenizer limitations.
+- **Intent-Aware Router** — Classifies queries as WHY/WHO/WHEN/WHAT/GENERAL and adjusts boost parameters per intent. "Why did X fail?" triggers causal graph edges and higher vec weight.
+- **Graph Knowledge Reranking** — After RRF fusion, graph-reachable nodes receive a 1.15× score boost. Supports `causal`, `entity`, `temporal` edge types alongside existing relation types.
+- **Distillation Quality Scoring** — Level-aware quality scores (concrete: keyword-heavy, meta: semantic-heavy) with compression ratio scoring. Results stored as metadata on distilled observations.
+- **Dream Cycle Outcome Scoring** — Automatic novelty/relevance/serendipity scoring for collisions. Scores persisted as JSON metadata for post-hoc analysis.
+
+Schema upgraded to v2 with automatic migration from v1.
 
 ## Benchmarks
 
@@ -44,9 +80,11 @@ The story of how we got to 100% → [🇯🇵 Japanese](docs/benchmark_story_ja.
 
 **Forgetting.** Most memory systems only accumulate. ERINYS decays memories over time following the Ebbinghaus forgetting curve. Old noise sinks. Frequently accessed knowledge floats. Search results stay relevant without manual curation. Decay runs automatically — no LLM needed.
 
-**Distillation.** A specific bugfix ("JWT httpOnly flag was missing") automatically generates three layers: the concrete fact → a reusable pattern ("new endpoints need a security checklist") → a universal principle ("security defaults should be safe without opt-in"). No other memory system does this. ⚠️ *Distillation requires an LLM call to generate the abstract/meta layers.*
+**Distillation.** A specific bugfix ("JWT httpOnly flag was missing") automatically generates three layers: the concrete fact → a reusable pattern ("new endpoints need a security checklist") → a universal principle ("security defaults should be safe without opt-in"). No other memory system does this. ⚠️ *Distillation requires an LLM call to generate the abstract/meta layers. v0.2.0 adds quality scoring per distillation level.*
 
-**Dream Cycle.** Two memories are fed to an LLM: "is there a connection?" Candidate pairs are selected by semantic similarity — close enough to be related (cosine > 0.65), far enough to not be redundant (< 0.90). Currently triggered manually via `erinys_dream`. ⚠️ *Dream Cycle requires LLM calls — it is not part of the zero-LLM retrieval pipeline.*
+**Dream Cycle.** Two memories are fed to an LLM: "is there a connection?" Candidate pairs are selected by semantic similarity — close enough to be related (cosine > 0.65), far enough to not be redundant (< 0.90). Currently triggered manually via `erinys_dream`. ⚠️ *Dream Cycle requires LLM calls — it is not part of the zero-LLM retrieval pipeline. v0.2.0 adds automatic outcome scoring (novelty/relevance/serendipity).*
+
+**Adaptive Search (v0.2.0).** Query complexity is classified automatically. Simple keyword lookups stay FTS-heavy. Complex multi-hop questions shift to vector-heavy retrieval. CJK queries and mixed CJK+ASCII queries are routed to vector search by default, where embedding models outperform FTS5's porter tokenizer on non-Latin scripts.
 
 ## Design Philosophy
 
@@ -78,207 +116,10 @@ If memory contains both "use PostgreSQL" and "use SQLite", ERINYS detects the co
 
 Two searches run simultaneously and fuse results:
 
-- **Keyword search** (FTS5) — exact term matching.
-- **Vector search** (sqlite-vec) — semantic similarity. "authentication" finds "login", "JWT", "session tokens".
+- **Keyword search** (FTS5) — exact term matching with NEAR phrase expansion.
+- **Vector search** (sqlite-vec) — semantic similarity via BGE embeddings.
+- **RRF fusion** — Reciprocal Rank Fusion combines both rankings with adaptive weights.
+- **Intent routing** (v0.2.0) — WHY/WHEN/WHO queries adjust boost parameters and edge types.
+- **Graph reranking** (v0.2.0) — Knowledge graph neighbors boost fusion scores.
 
-Results merge via Reciprocal Rank Fusion (RRF). High in both = highest score.
-
-### Everything stays local
-
-Single SQLite file. No cloud APIs. No API keys. No subscriptions. Offline-capable. Your agent's memory never leaves your machine.
-
-## Use Cases
-
-### 1. Cross-Session Memory for Coding Agents
-
-```python
-# Agent saves a learning after fixing a bug
-erinys_save(
-  title="Fixed JWT httpOnly flag missing",
-  content="Cookie was accessible via JS. Added httpOnly: true, secure: true, sameSite: strict.",
-  type="bugfix",
-  project="my-app"
-)
-
-# Next week, similar task — agent searches memory
-erinys_search(query="authentication cookie security", project="my-app")
-# → Returns the JWT fix with relevance score
-```
-
-### 2. Contradiction Detection
-
-```python
-erinys_save(title="Database choice", content="Using SQLite for simplicity", project="my-app")
-erinys_conflict_check(observation_id=42)
-# → "⚠️ Conflicts with #18: 'Using PostgreSQL for production reliability'"
-```
-
-### 3. Dream Cycle — Overnight Knowledge Synthesis
-
-```python
-erinys_dream(max_collisions=10)
-# Picks memory pairs in the "sweet spot" (cosine 0.65–0.90)
-# Memory A: "RTK reduces token usage by 60-90%"
-# Memory B: "Bootstrap Gate takes 3 seconds due to multiple script calls"
-# → Insight: "Apply RTK prefix to Bootstrap Gate scripts to reduce overhead"
-```
-
-### 4. Temporal Queries
-
-```python
-erinys_timeline(query="deployment target", as_of="2026-03-01")
-# → "AWS EC2 (decided 2026-02-15)"
-
-erinys_timeline(query="deployment target", as_of="2026-04-01")
-# → "GCP Cloud Run (superseded AWS on 2026-03-20)"
-```
-
-### 5. Knowledge Distillation
-
-```python
-erinys_save(title="Forgot CORS headers on new endpoint", type="bugfix", ...)
-erinys_distill(observation_id=50, level="meta")
-# → concrete: "CORS headers missing on /api/v2/users endpoint"
-# → abstract: "New API endpoints need a CORS review checklist"
-# → meta:     "Security concerns should be opt-out, not opt-in"
-```
-
-### 6. Obsidian Export
-
-```python
-erinys_export(format="markdown")
-# → Generates .md files with [[wikilinks]]
-# Drop into Obsidian → instant knowledge graph
-```
-
-## Quick Start
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -e ".[dev]"
-ollama pull gemma4:e4b
-
-# Run as MCP server (stdio)
-python -m erinys_memory.server
-
-# Run tests
-PYTHONPATH=src pytest tests/ -v
-```
-
-## MCP Configuration
-
-### Claude Desktop / Claude Code
-
-```json
-{
-  "mcpServers": {
-    "erinys": {
-      "command": "/path/to/ERINYS-mem/.venv/bin/python3",
-      "args": ["-m", "erinys_memory.server"],
-      "env": {
-        "ERINYS_DB_PATH": "~/.erinys/memory.db"
-      }
-    }
-  }
-}
-```
-
-### Gemini (Antigravity)
-
-Add to `~/.gemini/antigravity/settings.json` under `mcpServers`:
-
-```json
-{
-  "erinys": {
-    "command": "/path/to/ERINYS-mem/.venv/bin/python3",
-    "args": ["-m", "erinys_memory.server"],
-    "env": {
-      "ERINYS_DB_PATH": "~/.erinys/memory.db"
-    }
-  }
-}
-```
-
-## Environment Variables
-
-| Variable | Default | Description |
-|:--|:--|:--|
-| `ERINYS_DB_PATH` | `~/.erinys/memory.db` | SQLite database path |
-| `ERINYS_EMBEDDING_MODEL` | `BAAI/bge-small-en-v1.5` | fastembed model |
-| `ERINYS_DISTILL_MODEL` | `gemma4:e4b` | Local Ollama model for auto-distillation |
-| `ERINYS_DISTILL_ENDPOINT` | `http://localhost:11434/api/generate` | Local Ollama generate endpoint |
-
-## Tools (25)
-
-### Core
-- `erinys_save` — Save observation (with topic_key upsert)
-- `erinys_get` — Get by ID (full content, untruncated)
-- `erinys_update` — Partial update
-- `erinys_delete` — Delete with FK cascade
-- `erinys_search` — RRF hybrid search (FTS5 + vector)
-- `erinys_save_prompt` — Save user prompt
-- `erinys_recall` — Recent observations
-- `erinys_context` — Session context recall
-- `erinys_export` — Obsidian-compatible markdown export
-- `erinys_backup` — SQLite backup
-- `erinys_stats` — Database statistics
-
-### Graph
-- `erinys_link` — Create typed edge
-- `erinys_traverse` — BFS graph traversal
-- `erinys_prune` — Prune weak/decayed edges
-
-### Temporal
-- `erinys_reinforce` — Boost observation strength
-- `erinys_supersede` — Version an observation
-- `erinys_timeline` — Query as-of timestamp
-- `erinys_conflict_check` — Detect contradictions
-
-### Dream Cycle
-- `erinys_collide` — Collide two observations via LLM
-- `erinys_dream` — Batch collision cycle
-
-### Distillation
-- `erinys_distill` — 3-granularity abstraction (concrete → abstract → meta)
-
-### Batch & Eval
-- `erinys_batch_save` — Bulk save with auto-linking
-- `erinys_eval` — LOCOMO-inspired quality metrics
-
-### Session
-- `erinys_session_start` — Start session
-- `erinys_session_end` — End session with summary
-- `erinys_session_summary` — Save structured summary
-
-## Architecture
-
-```
-┌──────────────────────────┐
-│     FastMCP Server       │  25 tools, unified envelope
-├──────────────────────────┤
-│  search.py  │ graph.py   │  RRF hybrid │ typed edges
-│  decay.py   │ session.py │  Ebbinghaus │ lifecycle
-│  temporal.py│collider.py │  versioning │ cross-pollination
-│  distill.py │ db.py      │  abstraction│ SQLite + vec
-├──────────────────────────┤
-│  embedding.py            │  fastembed (BAAI/bge-small-en-v1.5)
-├──────────────────────────┤
-│  SQLite + FTS5 + vec0    │  Local-first, no network at runtime
-└──────────────────────────┘
-```
-
-## Roadmap
-
-- [x] Auto-Distill on Save — Trigger 3-granularity distillation on every save
-- [ ] Dream Daemon — Background auto-execution of Dream Cycle (currently manual trigger only)
-- [ ] Auto-Prune — GC decayed observations when DB exceeds size threshold
-- [ ] Cron-ready CLI — `erinys dream --max 10` for scheduled overnight synthesis
-- [ ] PyPI package — `pip install erinys-memory`
-- [ ] Multi-agent support — Scoped memory per agent identity
-- [ ] LongMemEval `_m` split evaluation
-- [ ] GitHub Release tags + CI badges
-
-## License
-
-MIT
+No LLM in the loop. Retrieval latency stays under 15ms.

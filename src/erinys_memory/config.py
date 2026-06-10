@@ -19,7 +19,8 @@ class ErinysConfig:
     db_max_size_mb: int = 500
     db_reader_pool_size: int = 4
     embedding_model: str = os.environ.get(
-        "ERINYS_EMBEDDING_MODEL", "BAAI/bge-small-en-v1.5"
+        "ERINYS_EMBEDDING_MODEL",
+        "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
     )
     embedding_dim: int = 384
     rrf_k: int = 60

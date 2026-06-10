@@ -3,12 +3,18 @@
 from __future__ import annotations
 
 import json
+import logging
 import math
 import sqlite3
 import struct
 from typing import Any
 
+import numpy as np
+
 from .config import ErinysConfig
+from .db import embedding_engine
+
+logger = logging.getLogger(__name__)
 
 STOPWORDS = {
     "the",
@@ -73,6 +79,46 @@ def _extract_keywords(text: str) -> list[str]:
     return ordered
 
 
+def _compute_collision_score(
+    source_a_content: str,
+    source_b_content: str,
+    collision_content: str,
+    similarity: float,
+) -> dict[str, float]:
+    """Score a dream collision's usefulness.
+
+    Returns dict with:
+    - novelty: fraction of collision keywords NOT in sources (0-1)
+    - relevance: embedding similarity of collision to combined sources (0-1)
+    - serendipity_score: novelty * (1 - similarity) + relevance * similarity
+    """
+    collision_keywords = _extract_keywords(collision_content)
+    if collision_keywords:
+        source_keywords = set(_extract_keywords(source_a_content + " " + source_b_content))
+        novel_count = sum(1 for kw in collision_keywords if kw not in source_keywords)
+        novelty = novel_count / len(collision_keywords)
+    else:
+        novelty = 0.0
+
+    combined_source = source_a_content + " " + source_b_content
+    combined_embedding = embedding_engine.embed(combined_source)
+    collision_embedding = embedding_engine.embed(collision_content)
+    relevance = max(0.0, _cosine_similarity(combined_embedding, collision_embedding))
+
+    # W8: Clamp inputs to [0, 1] for safety when reused outside bounded search
+    similarity = max(0.0, min(similarity, 1.0))
+    novelty = max(0.0, min(novelty, 1.0))
+    relevance = max(0.0, min(relevance, 1.0))
+
+    serendipity_score = novelty * (1.0 - similarity) + relevance * similarity
+
+    return {
+        "novelty": round(novelty, 4),
+        "relevance": round(relevance, 4),
+        "serendipity_score": round(serendipity_score, 4),
+    }
+
+
 def _context_differs(obs_a: dict[str, Any], obs_b: dict[str, Any]) -> bool:
     return obs_a.get("project") != obs_b.get("project") or obs_a.get("session_id") != obs_b.get("session_id")
 
@@ -100,9 +146,16 @@ def _fetch_embedding_blob(db: sqlite3.Connection, obs_id: int) -> bytes:
     return bytes(row[0])
 
 
+def _normalize_rows(matrix: np.ndarray) -> np.ndarray:
+    norms = np.linalg.norm(matrix, axis=1)
+    norms[norms == 0.0] = 1.0  # zero ベクトルは similarity 0 扱い（band 外）
+    return matrix / norms[:, None]
+
+
 def _fetch_observations_with_embeddings(
     db: sqlite3.Connection,
-) -> list[tuple[dict[str, Any], list[float]]]:
+) -> tuple[list[dict[str, Any]], np.ndarray]:
+    """全 observation と正規化済み embedding 行列を返す。"""
     rows = db.execute(
         """
         SELECT o.*, v.embedding
@@ -111,7 +164,17 @@ def _fetch_observations_with_embeddings(
         ORDER BY o.id ASC
         """
     ).fetchall()
-    return [(_observation_record(row), _vector_from_blob(bytes(row["embedding"]))) for row in rows]
+    records = [_observation_record(row) for row in rows]
+    if not rows:
+        return records, np.empty((0, 0), dtype=np.float32)
+    matrix = np.vstack([np.frombuffer(bytes(row["embedding"]), dtype=np.float32) for row in rows])
+    return records, _normalize_rows(matrix)
+
+
+def _existing_collision_pairs(db: sqlite3.Connection) -> set[tuple[int, int]]:
+    """既存 collision ペアを1クエリで取得する（ペア毎の照会を回避）。"""
+    rows = db.execute("SELECT source_a, source_b FROM collisions").fetchall()
+    return {(int(row[0]), int(row[1])) for row in rows}
 
 
 def get_collision(
@@ -123,13 +186,22 @@ def get_collision(
     normalized_a, normalized_b = _normalize_pair(source_a, source_b)
     row = db.execute(
         """
-        SELECT id, source_a, source_b, insight, confidence, accepted, created_at
+        SELECT id, source_a, source_b, insight, confidence, accepted, metadata, created_at
         FROM collisions
         WHERE source_a = ? AND source_b = ?
         """,
         [normalized_a, normalized_b],
     ).fetchone()
-    return dict(row) if row is not None else None
+    if row is None:
+        return None
+    record = dict(row)
+    # Decode collision_score from metadata JSON
+    if record.get("metadata") and isinstance(record["metadata"], str):
+        try:
+            record["collision_score"] = json.loads(record["metadata"])
+        except (json.JSONDecodeError, TypeError):
+            pass
+    return record
 
 
 def save_collision(
@@ -139,20 +211,40 @@ def save_collision(
     insight: str,
     confidence: float | None,
     accepted: bool | None = None,
+    collision_score: dict[str, float] | None = None,
 ) -> dict[str, Any]:
-    """collision を正規化して保存する。"""
+    """collision を正規化して保存する。score が未指定なら自動計算する。"""
     normalized_a, normalized_b = _normalize_pair(source_a, source_b)
+
+    # W4: Auto-compute collision_score if not provided (consistent across entry points)
+    if collision_score is None and confidence is not None:
+        try:
+            obs_a = _fetch_observation(db, normalized_a)
+            obs_b = _fetch_observation(db, normalized_b)
+            collision_score = _compute_collision_score(
+                str(obs_a["content"]),
+                str(obs_b["content"]),
+                insight,
+                confidence,
+            )
+        except (LookupError, Exception):
+            pass  # Degrade gracefully if observations unavailable
+
+    # W3: Persist collision_score in metadata JSON column
+    score_json = json.dumps(collision_score, ensure_ascii=False) if collision_score else None
     db.execute(
         """
-        INSERT INTO collisions(source_a, source_b, insight, confidence, accepted)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO collisions(source_a, source_b, insight, confidence, accepted, metadata)
+        VALUES (?, ?, ?, ?, ?, ?)
         """,
-        [normalized_a, normalized_b, insight, confidence, accepted],
+        [normalized_a, normalized_b, insight, confidence, accepted, score_json],
     )
     db.commit()
     collision = get_collision(db, normalized_a, normalized_b)
     if collision is None:
         raise LookupError("collision not found after insert")
+    if collision_score is not None:
+        collision["collision_score"] = collision_score
     return collision
 
 
@@ -180,23 +272,45 @@ class MemoryCollider:
     def __init__(self, config: ErinysConfig | None = None) -> None:
         self.config = config or ErinysConfig()
 
+    # index 行と後続行の類似度を一括計算し、衝突条件を満たすペアを返す。
+    def _band_candidates_for_row(
+        self,
+        records: list[dict[str, Any]],
+        normalized: np.ndarray,
+        index: int,
+        existing: set[tuple[int, int]],
+    ) -> list[tuple[int, int, float]]:
+        left_obs = records[index]
+        sims = normalized[index + 1 :] @ normalized[index]
+        band = np.nonzero(
+            (sims > self.config.collider_sim_min) & (sims < self.config.collider_sim_max)
+        )[0]
+        found: list[tuple[int, int, float]] = []
+        for offset in band:
+            right_obs = records[index + 1 + int(offset)]
+            if not _context_differs(left_obs, right_obs):
+                continue
+            pair = _normalize_pair(int(left_obs["id"]), int(right_obs["id"]))
+            if pair in existing:
+                continue
+            found.append((int(left_obs["id"]), int(right_obs["id"]), float(sims[int(offset)])))
+        return found
+
     def find_collision_candidates(
         self,
         db: sqlite3.Connection,
         limit: int = 20,
     ) -> list[tuple[int, int, float]]:
-        """全 observation のペアから衝突候補を見つける。"""
-        observations = _fetch_observations_with_embeddings(db)
+        """全 observation のペアから衝突候補を見つける（numpy ベクトル化）。"""
+        records, normalized = _fetch_observations_with_embeddings(db)
+        if len(records) < 2:
+            return []
+        existing = _existing_collision_pairs(db)
         candidates: list[tuple[int, int, float]] = []
-        for index, (left_obs, left_vector) in enumerate(observations):
-            for right_obs, right_vector in observations[index + 1 :]:
-                if not _context_differs(left_obs, right_obs):
-                    continue
-                if get_collision(db, int(left_obs["id"]), int(right_obs["id"])) is not None:
-                    continue
-                similarity = _cosine_similarity(left_vector, right_vector)
-                if self.config.collider_sim_min < similarity < self.config.collider_sim_max:
-                    candidates.append((int(left_obs["id"]), int(right_obs["id"]), similarity))
+        for index in range(len(records) - 1):
+            candidates.extend(
+                self._band_candidates_for_row(records, normalized, index, existing)
+            )
         candidates.sort(key=lambda item: item[2], reverse=True)
         return candidates[:limit]
 
@@ -250,5 +364,16 @@ class MemoryCollider:
             obs_b = _fetch_observation(db, obs_b_id)
             insight = self.collide(db, obs_a, obs_b)
             if insight:
-                results.append(save_collision(db, obs_a_id, obs_b_id, insight, similarity))
+                score = _compute_collision_score(
+                    str(obs_a["content"]),
+                    str(obs_b["content"]),
+                    insight,
+                    similarity,
+                )
+                results.append(
+                    save_collision(
+                        db, obs_a_id, obs_b_id, insight, similarity,
+                        collision_score=score,
+                    )
+                )
         return results
