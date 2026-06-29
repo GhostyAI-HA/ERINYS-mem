@@ -19,6 +19,7 @@ from fastmcp import FastMCP
 
 from .collider import MemoryCollider, get_collision, pair_similarity, save_collision
 from .config import ErinysConfig
+from .provenance import build_provenance
 from .db import (
     delete_observation_with_embedding,
     embedding_engine,
@@ -324,6 +325,9 @@ def _observation_payload(
     session_id: str | None,
     metadata: dict[str, object] | None,
     source: str = "user",
+    principal: str | None = None,
+    derived_via: str = "save",
+    parents: list[int] | None = None,
 ) -> dict[str, object]:
     _validate_title(title)
     _validate_content(content)
@@ -332,6 +336,9 @@ def _observation_payload(
     if session_id is not None and not _session_exists(session_id):
         raise LookupError(f"session not found: {session_id}")
     is_anti_pattern, is_pattern = _infer_flags(obs_type)
+    # VMG: provenance はサーバ管理。呼び出し側の metadata は保持しつつ provenance を上書き。
+    enriched = dict(metadata) if isinstance(metadata, dict) else {}
+    enriched["provenance"] = build_provenance(source, principal, derived_via, parents)
     return {
         "title": _redact_text(title),
         "content": _redact_text(content),
@@ -343,7 +350,7 @@ def _observation_payload(
         "source": source,
         "embedding_model": _embedding().model_name,
         "topic_key": topic_key,
-        "metadata": metadata,
+        "metadata": enriched,
         "session_id": session_id,
     }
 
@@ -629,6 +636,27 @@ def _evaluation_metrics(project: str | None = None) -> dict[str, Any]:
     return metrics
 
 
+_PROTECTED_TYPES = frozenset({"decision", "anti_pattern"})
+
+
+def _flag_consolidation_conflicts(record: dict[str, Any], status: str, obs_type: str) -> list[int]:
+    """保護corefact新規保存時のみ矛盾検出しmetadata['conflicts_with']に可逆フラグ(SSGM #147/A1)。
+    フラグ処理は best-effort: 失敗してもsaveを壊さない(全副作用をtry内に置く)。"""
+    if status != "created" or obs_type not in _PROTECTED_TYPES:
+        return []
+    try:
+        hits = conflict_check(_db(), int(record["id"]), limit=3)
+        ids = [int(hit["observation"]["id"]) for hit in hits]
+        if ids:
+            record["metadata"] = {**(record.get("metadata") or {}), "conflicts_with": ids}
+            update_observation(_db(), int(record["id"]), {"metadata": record["metadata"]})
+            _audit("consolidation_conflict", "observation", int(record["id"]), {"conflicts": ids})
+        return ids
+    except Exception as exc:
+        logger.warning("conflict flagging failed for %s: %s", record.get("id"), exc)
+        return []
+
+
 @mcp.tool
 def erinys_save(
     title: str,
@@ -639,13 +667,20 @@ def erinys_save(
     topic_key: str | None = None,
     session_id: str | None = None,
     metadata: dict | None = None,
+    principal: str | None = None,
 ) -> dict:
-    """Save a structured observation to ERINYS memory."""
+    """Save a structured observation to ERINYS memory.
+
+    principal: この記憶を書いた主体(例 claude-opus-4-8 / codex)。省略時は
+    env ERINYS_PRINCIPAL → "unknown"。VMG provenance に記録される。
+    """
 
     def action() -> dict[str, Any]:
-        payload = _observation_payload(title, content, type, project, scope, topic_key, session_id, metadata)
+        payload = _observation_payload(title, content, type, project, scope, topic_key,
+                                       session_id, metadata, principal=principal)
         record, status = _persist_observation(payload)
         _audit("save", "observation", int(record["id"]), {"status": status, "topic_key": topic_key})
+        conflicts_with = _flag_consolidation_conflicts(record, status, type)
         auto_distilled: list[dict[str, Any]] = []
         if status == "created" and _CONFIG.auto_distill_on_save:
             try:
@@ -659,6 +694,7 @@ def erinys_save(
             "status": status,
             "observation": record,
             "auto_distilled": [{"id": d["id"], "level": d.get("distillation_level")} for d in auto_distilled],
+            "conflicts_with": conflicts_with,
         }
 
     return _envelope(action)
@@ -670,6 +706,69 @@ def erinys_get(
 ) -> dict:
     """Get a single observation by ID (full content, untruncated)."""
     return _envelope(lambda: {"observation": _fetch_observation(id)})
+
+
+def _lineage_node(record: dict[str, Any]) -> dict[str, Any]:
+    """observation から系譜表示用の1ノードを抽出する。"""
+    meta = record.get("metadata") or {}
+    prov = meta.get("provenance") if isinstance(meta, dict) else None
+    prov = prov if isinstance(prov, dict) else {}
+    parents = prov.get("parents") or []
+    if not parents and record.get("distilled_from") is not None:
+        parents = [int(record["distilled_from"])]  # legacy 単一親フォールバック
+    return {
+        "id": int(record["id"]),
+        "title": record.get("title"),
+        "derived_via": prov.get("derived_via"),
+        "principal": prov.get("principal"),
+        "source": prov.get("source") or record.get("source"),
+        "recorded_at": prov.get("recorded_at"),
+        "parents": [int(p) for p in parents],
+    }
+
+
+@mcp.tool
+def erinys_lineage(
+    id: int,
+    max_depth: int = 10,
+) -> dict:
+    """VMG Provenance Visibility: 記憶の出自系譜を祖先方向に辿って返す。
+
+    各ノードの provenance.parents(無ければ distilled_from)を辿り、
+    どの記憶からどう派生したかの lineage-complete な鎖を構成する。
+    """
+
+    def action() -> dict[str, Any]:
+        # root が存在しなければ NOT_FOUND(欠落を健全扱いしない)。親欠落のみ許容。
+        root = _fetch_observation(int(id))
+        cap = max(1, min(int(max_depth), 100))  # 暴走防止に上限
+        chain: list[dict[str, Any]] = []
+        seen: set[int] = set()
+        root_node = _lineage_node(root)
+        root_node["depth"] = 0
+        chain.append(root_node)
+        seen.add(int(id))
+        frontier = list(root_node["parents"])
+        depth = 1
+        while frontier and depth < cap:
+            nxt: list[int] = []
+            for oid in frontier:
+                if oid in seen:
+                    continue
+                seen.add(oid)
+                try:
+                    node = _lineage_node(_fetch_observation(oid))
+                except LookupError:
+                    chain.append({"id": oid, "missing": True})
+                    continue
+                node["depth"] = depth
+                chain.append(node)
+                nxt.extend(p for p in node["parents"] if p not in seen)
+            frontier = nxt
+            depth += 1
+        return {"id": int(id), "lineage": chain, "depth_reached": depth}
+
+    return _envelope(action)
 
 
 @mcp.tool
@@ -685,7 +784,7 @@ def erinys_update(
     """Update an existing observation. Only provided fields are changed."""
 
     def action() -> dict[str, Any]:
-        _fetch_observation(id)
+        current = _fetch_observation(id)
         fields: dict[str, object] = {}
         if title is not None:
             _validate_title(title)
@@ -705,7 +804,12 @@ def erinys_update(
             _validate_scope(scope)
             fields["scope"] = scope
         if metadata is not None:
-            fields["metadata"] = metadata
+            # VMG: 更新で provenance(作成時の出自履歴)を消させない。既存を引き継ぐ。
+            merged = dict(metadata)
+            old_meta = current.get("metadata")
+            if isinstance(old_meta, dict) and "provenance" in old_meta:
+                merged["provenance"] = old_meta["provenance"]
+            fields["metadata"] = merged
         update_observation(_db(), id, fields)
         record = _fetch_observation(id)
         _audit("update", "observation", id, {"fields": sorted(fields)})
@@ -726,6 +830,131 @@ def erinys_delete(
         delete_observation_with_embedding(_db(), id)
         _audit("delete", "observation", id, cascaded)
         return {"id": id, "deleted": True, "cascaded": cascaded}
+
+    return _envelope(action)
+
+
+def _membership_test(obs_ids: list[int]) -> dict[str, int]:
+    """与えた id 群が全 DB substrate に残っていないか数える(Verified Forgetting の証明)。
+
+    すべて 0 なら DB 内のどの substrate からも当該 rowid が復元不能であることを実証する。
+    注(正直な限界): observations_fts は contentless FTS5 で、ここは rowid 在席を測る。
+    削除トリガが正常なら observations=0 と連動して 0 になる(観測=0 がトリガ発火を含意)。
+    トリガ破損や事前の index ドリフトによる用語レベルの残骸検出は対象外(別の整合監査)。
+    """
+    db = _db()
+    placeholders = ",".join("?" * len(obs_ids))
+    pairs = {
+        "observations": (f"SELECT COUNT(*) FROM observations WHERE id IN ({placeholders})", obs_ids),
+        "vec_observations": (f"SELECT COUNT(*) FROM vec_observations WHERE rowid IN ({placeholders})", obs_ids),
+        "observations_fts": (f"SELECT COUNT(*) FROM observations_fts WHERE rowid IN ({placeholders})", obs_ids),
+        "edges": (f"SELECT COUNT(*) FROM edges WHERE source_id IN ({placeholders}) "
+                  f"OR target_id IN ({placeholders})", obs_ids + obs_ids),
+        "collisions": (f"SELECT COUNT(*) FROM collisions WHERE source_a IN ({placeholders}) "
+                       f"OR source_b IN ({placeholders})", obs_ids + obs_ids),
+    }
+    result: dict[str, int] = {}
+    for name, (sql, params) in pairs.items():
+        row = db.execute(sql, params).fetchone()
+        result[name] = int(row[0]) if row is not None else 0
+    return result
+
+
+# 子の探索: distilled_from 列 OR provenance.parents(JSON)に cur を含む行。
+# distilled だけでなく supersede/collide 等 provenance 由来の派生も漏らさない。
+_CHILDREN_SQL = (
+    "SELECT id FROM observations WHERE distilled_from = ?1 "
+    "OR (metadata IS NOT NULL AND json_valid(metadata) "
+    "AND EXISTS (SELECT 1 FROM json_each(metadata, '$.provenance.parents') je "
+    "WHERE je.value = ?1))"
+)
+
+
+def _forget_closure(obs_id: int) -> list[int]:
+    """target と全派生子孫を、削除安全な順(子→親=leaf first)で返す。
+
+    distilled_from は NO ACTION FK のため、親を消すには子を先に消す必要がある。
+    forgetting は派生物にも伝播せねば情報が子に残る(VMG)ので子孫ごと忘れる。
+    再帰でなく反復 post-order DFS(深い連鎖でも RecursionError しない)。
+    """
+    db = _db()
+    order: list[int] = []
+    seen: set[int] = set()
+    stack: list[tuple[int, bool]] = [(int(obs_id), False)]
+    while stack:
+        node, processed = stack.pop()
+        if processed:
+            order.append(node)  # 子孫を先に append 済み → leaf first
+            continue
+        if node in seen:
+            continue
+        seen.add(node)
+        stack.append((node, True))
+        for row in db.execute(_CHILDREN_SQL, [node]).fetchall():
+            cid = int(row[0])
+            if cid not in seen:
+                stack.append((cid, False))
+    return order
+
+
+def _delete_closure(ids_leaf_first: list[int]) -> None:
+    """closure を単一トランザクションで削除。外部からの superseded_by 参照は NULL 化。"""
+    db = _db()
+    placeholders = ",".join("?" * len(ids_leaf_first))
+    db.execute("BEGIN IMMEDIATE")
+    try:
+        # closure 外の行が closure を superseded_by で指していれば dangling になるため NULL 化
+        db.execute(
+            f"UPDATE observations SET superseded_by = NULL "
+            f"WHERE superseded_by IN ({placeholders}) AND id NOT IN ({placeholders})",
+            ids_leaf_first + ids_leaf_first,
+        )
+        for oid in ids_leaf_first:
+            db.execute("DELETE FROM vec_observations WHERE rowid = ?", [oid])
+            db.execute("DELETE FROM observations WHERE id = ?", [oid])  # FTS/edges/collisions 連動
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+
+
+@mcp.tool
+def erinys_forget(
+    id: int,
+    dry_run: bool = True,
+) -> dict:
+    """VMG Verified Forgetting: 観測とその distilled 派生物を全 DB substrate から
+    削除し、不在を membership test で実証する。
+
+    forgetting は派生物に伝播する: distilled 子孫を含む closure ごと忘れる
+    (子に親の情報が残るのを防ぐ)。closure を leaf-first で単一Txで削除し、
+    observations/vec/FTS(トリガ)/edges/collisions(CASCADE) を消す。
+    erinys_delete と違い、子を持つ親も忘れられる(NO ACTION FK を closure で解消)。
+    dry_run(既定)では削除せず closure と現在の在席のみ返す。
+
+    範囲外(正直な明示): Obsidian 書庫は次回 export の orphan 掃除で遅延除去、
+    .bak バックアップは復元用に設計上保持するため、この DB 検証の対象外。
+    """
+
+    def action() -> dict[str, Any]:
+        _fetch_observation(id)  # 不在は NOT_FOUND（存在しない記憶を forget しない）
+        closure = _forget_closure(id)
+        if dry_run:
+            return {"id": id, "dry_run": True, "closure": closure,
+                    "closure_size": len(closure), "present": _membership_test(closure)}
+        _delete_closure(closure)
+        residual = _membership_test(closure)
+        complete = all(v == 0 for v in residual.values())
+        _audit("forget", "observation", id,
+               {"closure": closure, "residual": residual, "complete": complete})
+        return {
+            "id": id, "forgotten": True, "complete": complete,
+            "closure": closure, "closure_size": len(closure), "residual": residual,
+            "external_substrates": {
+                "obsidian_vault": "次回 export の orphan 掃除で除去(遅延・DB外)",
+                "db_backups": "復元用に設計上保持(.bak は forget 対象外・DB外)",
+            },
+        }
 
     return _envelope(action)
 
@@ -1013,13 +1242,16 @@ def erinys_batch_save(
                 item.get("topic_key"),
                 item.get("session_id"),
                 item.get("metadata"),
+                principal=item.get("principal"),
+                derived_via="batch_save",
             )
             payloads.append(payload)
             contents.append(str(payload["content"]))
         embeddings = _embedding().embed_batch(contents)
         created: list[dict[str, Any]] = []
         for payload, vector in zip(payloads, embeddings):
-            record, _ = _persist_observation(payload, embedding=vector)
+            record, status = _persist_observation(payload, embedding=vector)
+            _flag_consolidation_conflicts(record, status, str(payload.get("type", "")))
             created.append(record)
         edges = _auto_link(created, embeddings) if auto_link else []
         _audit("batch_save", "observation", None, {"count": len(created), "auto_link": auto_link, "edges": len(edges)})

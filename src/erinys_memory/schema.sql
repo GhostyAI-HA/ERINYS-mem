@@ -1,5 +1,5 @@
 -- ============================================================
--- ERINYS Schema v1.0
+-- ERINYS Schema v2.0
 -- Single-file SQLite database for reflexive AI memory
 -- ============================================================
 
@@ -165,7 +165,8 @@ CREATE TABLE edges (
               CHECK(relation IN (
                 'relates_to','depends_on','implements',
                 'references','similar_to','contains',
-                'contradicts','supersedes','distilled_from'
+                'contradicts','supersedes','distilled_from',
+                'causal','entity','temporal'
               )),
   weight      REAL    NOT NULL DEFAULT 1.0
               CHECK(weight >= 0.0 AND weight <= 1.0),
@@ -189,6 +190,7 @@ CREATE TABLE collisions (
   insight     TEXT    NOT NULL,
   confidence  REAL,
   accepted    BOOLEAN,   -- NULL=未確認, 1=採用, 0=棄却
+  metadata    TEXT CHECK(metadata IS NULL OR json_valid(metadata)),  -- collision_score JSON
   created_at  DATETIME NOT NULL DEFAULT (datetime('now')),
 
   UNIQUE(source_a, source_b)  -- 同じペアは1度だけ衝突
@@ -226,4 +228,4 @@ CREATE TABLE schema_version (
   version     INTEGER PRIMARY KEY,
   applied_at  DATETIME NOT NULL DEFAULT (datetime('now'))
 );
-INSERT INTO schema_version(version) VALUES (1);
+INSERT INTO schema_version(version) VALUES (2);

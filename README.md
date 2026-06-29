@@ -4,7 +4,7 @@
 
 # ERINYS — Reflexive Memory for AI Agents
 
-**v0.2.0** · **100% Recall@5 on LongMemEval-S (`_s` split) · 94% on LoCoMo · 98% on ConvoMem — Zero LLM calls in the retrieval pipeline.**
+**v0.4.0** · **100% Recall@5 on LongMemEval-S (`_s` split) · 94% on LoCoMo · 98% on ConvoMem — Zero LLM calls in the retrieval pipeline.**
 
 [🇯🇵 日本語版 / Japanese](README_ja.md)
 
@@ -28,15 +28,15 @@ ERINYS is a guard dog. It remembers, forgets, questions, and bites.
 
 ERINYS automation should use the JSON CLI as the primary control surface. MCP remains available as an agent-facing adapter, but scheduled jobs, CI, recovery, and manual verification should call the CLI so failures have stable exit codes and machine-readable output. This first CLI phase bypasses the MCP protocol while reusing the existing `erinys_memory.server` functions; the next refactor should split those functions into a protocol-neutral service layer.
 
-From the KG_Antigravity workspace:
+From your workspace:
 
 ```bash
-python3 .agent/scripts/erinys_cli.py health --project KG_Antigravity --json          # light: no venv needed; cannot verify vectors (may report degraded)
-python3 .agent/scripts/erinys_cli.py health --project KG_Antigravity --deep --json   # authoritative: server import + search smoke test
-python3 .agent/scripts/erinys_cli.py context --project KG_Antigravity --limit 10 --readonly --json
-python3 .agent/scripts/erinys_cli.py search "Buffer DNS" --project KG_Antigravity --limit 5 --readonly --json
-python3 .agent/scripts/erinys_cli.py undistilled --project KG_Antigravity --limit 10 --json
-python3 .agent/scripts/erinys_cli.py save --title "Decision" --content "What: ..." --type decision --project KG_Antigravity --json
+python3 .agent/scripts/erinys_cli.py health --project my-project --json          # light: no venv needed; cannot verify vectors (may report degraded)
+python3 .agent/scripts/erinys_cli.py health --project my-project --deep --json   # authoritative: server import + search smoke test
+python3 .agent/scripts/erinys_cli.py context --project my-project --limit 10 --readonly --json
+python3 .agent/scripts/erinys_cli.py search "Buffer DNS" --project my-project --limit 5 --readonly --json
+python3 .agent/scripts/erinys_cli.py undistilled --project my-project --limit 10 --json
+python3 .agent/scripts/erinys_cli.py save --title "Decision" --content "What: ..." --type decision --project my-project --json
 python3 .agent/scripts/erinys_cli.py distill 123 --level meta --json
 ```
 
@@ -45,8 +45,18 @@ python3 .agent/scripts/erinys_cli.py distill 123 --level meta --json
 When running inside the ERINYS package directly, use:
 
 ```bash
-python -m erinys_memory.cli health --project KG_Antigravity --json
+python -m erinys_memory.cli health --project my-project --json
 ```
+
+## What's New in v0.4.0 — VMG (Verifiable Memory Governance)
+
+ERINYS now governs the *provenance* and *forgetting* of every memory, mapping to the Verifiable Memory Governance framework for long-term agent memory.
+
+**Provenance Visibility.** Every observation carries a server-controlled `metadata.provenance` block — `principal` (who wrote it), `source`, `derived_via` (`save`/`batch_save`/`distill`/`session_summary`/`supersede`), `parents` (lineage), and `recorded_at`. It is stamped on *all* write paths and cannot be spoofed by the caller. The new **`erinys_lineage`** tool walks a memory's ancestry to a lineage-complete chain (with a graceful `distilled_from` fallback for pre-0.4 memories).
+
+**Verified Forgetting.** The new **`erinys_forget`** tool deletes a memory *and its derived closure* (distilled descendants, found via `distilled_from` or `provenance.parents`) in a single transaction, then runs a **membership test** proving zero residue across every DB substrate (`observations` / `vec_observations` / FTS / `edges` / `collisions`). Unlike `erinys_delete`, it can forget a parent that still has children (the closure resolves the `NO ACTION` FK). External substrates (the Obsidian vault clears on the next export sweep; `.bak` backups are retained by design) are explicitly reported as out of DB-verification scope.
+
+**Migration.** `scripts/backfill_provenance.py` retro-stamps provenance onto pre-0.4 rows from existing columns (idempotent, dry-run by default, WAL-safe backup). Optional — lineage and forgetting already work on legacy rows via the `distilled_from` fallback. The DB `schema_version` is unchanged (provenance lives inside the existing `metadata` column).
 
 ## What's New in v0.2.0
 

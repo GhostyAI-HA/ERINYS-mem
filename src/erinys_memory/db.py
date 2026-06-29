@@ -288,6 +288,18 @@ def validate_db_metadata(db: sqlite3.Connection, config: ErinysConfig) -> None:
         raise RuntimeError("embedding model/dim mismatch: DB metadata vs config")
 
 
+def resolve_session_id(db: sqlite3.Connection, session_id: object) -> object:
+    """
+    sessions に実在する場合のみ session_id を返し、それ以外は None。
+    セッション一括削除後、孤児 session_id を持つ観測が残ることがある。
+    その値を新規 INSERT にコピーすると FOREIGN KEY 違反になる。
+    """
+    if session_id is None:
+        return None
+    row = db.execute("SELECT 1 FROM sessions WHERE id = ?", [session_id]).fetchone()
+    return session_id if row is not None else None
+
+
 def insert_observation_with_embedding(
     db: sqlite3.Connection,
     obs_payload: Mapping[str, object],

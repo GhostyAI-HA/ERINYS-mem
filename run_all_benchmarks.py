@@ -1,28 +1,32 @@
 import subprocess
 import glob
 import os
+import sys
 import json
 
 benchmarks = ["locomo_bench.py", "convomem_bench.py", "longmemeval_bench.py"]
 modes = ["enhanced_v2_boost"]
 results = {}
 
-sys_python = "/Users/fujiyoshi/Library/CloudStorage/Dropbox/002_work/KG_Antigravity/projects/erinys-memory/.venv/bin/python3"
+# Repo root is this script's directory; benchmarks/ live alongside it.
+REPO_ROOT = os.path.dirname(os.path.abspath(__file__))
+# Use the current interpreter by default; allow override via ERINYS_BENCH_PYTHON.
+sys_python = os.environ.get("ERINYS_BENCH_PYTHON", sys.executable)
 
 for bench in benchmarks[1:]:
     print(f"Running {bench}...")
     try:
         subprocess.run([
-            sys_python, 
-            f"benchmarks/{bench}", 
+            sys_python,
+            f"benchmarks/{bench}",
             "--mode", "enhanced_v2_boost"
-        ], cwd="/Users/fujiyoshi/Library/CloudStorage/Dropbox/002_work/KG_Antigravity/projects/erinys-memory", check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        ], cwd=REPO_ROOT, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     except subprocess.CalledProcessError as e:
         print(f"Failed to run {bench}: {e}")
 
 for bench in benchmarks:
     prefix = bench.replace("_bench.py", "")
-    files = glob.glob(f"benchmarks/results/summary_erinys_{prefix}_enhanced_v2_boost_*.json")
+    files = glob.glob(os.path.join(REPO_ROOT, f"benchmarks/results/summary_erinys_{prefix}_enhanced_v2_boost_*.json"))
     if files:
         latest_file = max(files, key=os.path.getmtime)
         with open(latest_file) as f:

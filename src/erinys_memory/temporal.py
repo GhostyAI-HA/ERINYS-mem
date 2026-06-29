@@ -10,9 +10,15 @@ from datetime import datetime, timezone
 from typing import Any
 
 from .config import ErinysConfig
-from .db import embedding_engine, insert_observation_with_embedding, update_observation
+from .db import (
+    embedding_engine,
+    insert_observation_with_embedding,
+    resolve_session_id,
+    update_observation,
+)
 from .embedding import serialize_f32
 from .graph import create_edge
+from .provenance import build_provenance
 from .search import rrf_hybrid_search
 
 NEGATION_TOKENS = {
@@ -183,8 +189,14 @@ def supersede_observation(
         "source": old["source"],
         "embedding_model": old["embedding_model"],
         "topic_key": old_topic_key,
-        "metadata": {**dict(old.get("metadata") or {}), "supersede_reason": reason, "superseded_from": old_id},
-        "session_id": old["session_id"],
+        "metadata": {
+            **dict(old.get("metadata") or {}),
+            "supersede_reason": reason,
+            "superseded_from": old_id,
+            # VMG: 新版は古い出自を継承せず、old_id を親とする新 provenance を持つ。
+            "provenance": build_provenance(old["source"], None, "supersede", [old_id]),
+        },
+        "session_id": resolve_session_id(db, old["session_id"]),
     }
     try:
         embedding = embedding_engine.embed(new_content)

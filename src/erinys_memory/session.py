@@ -8,6 +8,7 @@ from typing import Any
 
 from .db import embedding_engine, insert_observation_with_embedding
 from .embedding import serialize_f32
+from .provenance import build_provenance
 
 
 def _decode_json(value: object) -> object:
@@ -114,6 +115,10 @@ def save_session_summary(
         _fetch_session(db, session_id)
     summary_metadata = dict(metadata or {})
     summary_metadata["session_summary"] = True
+    # VMG provenance: session summary も出自を残す(save 経路外の挿入)。
+    summary_metadata["provenance"] = build_provenance(
+        "agent", None, "session_summary", None
+    )
     payload = {
         "title": f"Session Summary: {project}",
         "content": content,

@@ -16,13 +16,20 @@ import urllib.error
 from typing import Any
 
 from .config import ErinysConfig
-from .db import embedding_engine, insert_observation_with_embedding
+from .db import embedding_engine, insert_observation_with_embedding, resolve_session_id
 from .embedding import serialize_f32
 from .graph import create_edge
+from .provenance import build_provenance
 
 logger = logging.getLogger(__name__)
 
 LEVELS = ("concrete", "abstract", "meta")
+
+# SSGM quality gate (growth-radar #147, 2026-06-22):
+# _compute_distillation_quality は既存だが quality_score<0.4 が warning 止まりで、
+# 低品質蒸留がそのまま consolidate されていた。ここで metadata に可逆フラグを立て、
+# recall/再蒸留が識別できる「強制ゲート」に配線する（データは消さない）。
+QUALITY_GATE_THRESHOLD = 0.4
 
 _DISTILL_PROMPT = """You are a knowledge distillation engine. Given an observation, produce 3 levels of distillation as JSON.
 
@@ -369,6 +376,25 @@ def _build_distill_metadata(
     return base
 
 
+def _apply_quality_gate(
+    raw_source: dict[str, Any],
+    level: str,
+    method: str,
+    quality: dict[str, Any],
+    metadata: dict[str, object],
+) -> None:
+    """低品質蒸留を消さずに metadata へ可逆フラグする（SSGM quality gate の配線）。"""
+    # 源泉metadataから継承した古いフラグを必ず除去（今回の品質を反映させる。Codex P2）。
+    metadata.pop("quality_gate", None)
+    if quality["quality_score"] >= QUALITY_GATE_THRESHOLD:
+        return
+    metadata["quality_gate"] = {"status": "low", "score": quality["quality_score"]}
+    logger.warning(
+        "Low distillation quality %.2f for '%s' level=%s (method=%s)",
+        quality["quality_score"], raw_source.get("title", "?"), level, method,
+    )
+
+
 def _create_distillation_record(
     db: sqlite3.Connection,
     source: dict[str, Any],
@@ -394,14 +420,11 @@ def _create_distillation_record(
         level=level,
     )
     metadata["distillation_quality"] = quality
-    if quality["quality_score"] < 0.4:
-        logger.warning(
-            "Low distillation quality %.2f for '%s' level=%s (method=%s)",
-            quality["quality_score"],
-            raw_source.get("title", "?"),
-            level,
-            method,
-        )
+    _apply_quality_gate(raw_source, level, method, quality, metadata)
+    # VMG provenance: 蒸留物の出自を raw source に紐づけて記録(parents=[raw_id])。
+    metadata["provenance"] = build_provenance(
+        "distill", None, "distill", [raw_id]
+    )
 
     payload = {
         "title": _distilled_title(str(raw_source["title"]), level),
@@ -415,7 +438,7 @@ def _create_distillation_record(
         "distilled_from": raw_id,
         "source": "distill",
         "metadata": metadata,
-        "session_id": raw_source["session_id"],
+        "session_id": resolve_session_id(db, raw_source["session_id"]),
     }
     # W7: Wrap insert + edge creation in single transaction via insert_observation_with_embedding
     # (which already uses BEGIN IMMEDIATE). create_edge commits separately, so we catch failures.

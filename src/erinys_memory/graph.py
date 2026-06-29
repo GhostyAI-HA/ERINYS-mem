@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import sqlite3
 from collections import deque
-from typing import Any
+from typing import Any, Sequence
 
 from .decay import current_strength
 
@@ -19,6 +19,21 @@ VALID_RELATIONS = {
     "contradicts",
     "supersedes",
     "distilled_from",
+    # Phase 3b: MAGMA-inspired graph layer (#131)
+    "causal",     # WHY intent: cause-effect relationships
+    "entity",     # WHO intent: person/entity relationships
+    "temporal",   # WHEN intent: temporal ordering
+}
+
+# Map query intents to preferred edge types for graph-boosted search.
+# Intent constants are defined in search.py; imported at function-call time
+# to avoid circular imports. String keys are validated at runtime.
+_INTENT_EDGE_MAP: dict[str, list[str]] = {
+    "WHY": ["causal", "depends_on"],
+    "WHO": ["entity", "relates_to"],
+    "WHEN": ["temporal", "supersedes"],
+    "WHAT": ["references", "implements"],
+    "GENERAL": [],
 }
 
 
@@ -172,6 +187,41 @@ def traverse(
     start = _observation_summary(db, start_id)
     start["depth"] = 0
     return {"start": start, "nodes": nodes, "edges": edges}
+
+
+def graph_search(
+    db: sqlite3.Connection,
+    query_intent: str,
+    start_ids: Sequence[int],
+    max_depth: int = 1,
+) -> list[int]:
+    """Find observation IDs reachable via intent-relevant edges.
+
+    Phase 3b: MAGMA-inspired graph layer (#131).
+    Uses _INTENT_EDGE_MAP to select which edge types to traverse
+    based on the detected query intent.
+
+    Returns deduplicated list of reachable observation IDs (excluding start_ids).
+    """
+    relation_filter = _INTENT_EDGE_MAP.get(query_intent)
+    if not relation_filter:
+        return []
+
+    visited: set[int] = set(start_ids)
+    result_ids: list[int] = []
+
+    for sid in start_ids:
+        try:
+            traversal = traverse(db, sid, max_depth=max_depth, relation_filter=relation_filter)
+        except LookupError:
+            continue
+        for node in traversal.get("nodes", []):
+            nid = int(node["id"])
+            if nid not in visited:
+                visited.add(nid)
+                result_ids.append(nid)
+
+    return result_ids
 
 
 class GraphEngine:

@@ -35,3 +35,8 @@ Thumbs.db
 
 # fastembed model cache (large files)
 # Users should set FASTEMBED_CACHE_PATH if needed
+
+# dev-only vec0 shim (pyenv); public installs use a real pysqlite3/sqlite-vec — never publish
+src/sitecustomize.py
+src/pysqlite3/
+src/pysqlite3-*.dist-info/

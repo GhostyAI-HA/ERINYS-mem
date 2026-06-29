@@ -17,6 +17,137 @@ from .decay import current_strength
 from .embedding import serialize_f32
 
 
+# -- Query Complexity Classification (Growth Radar #110: SimpleMem-inspired) --
+
+COMPLEXITY_L1 = "L1"  # Simple: single keyword or short phrase
+COMPLEXITY_L2 = "L2"  # Medium: 2-3 keywords with context
+COMPLEXITY_L3 = "L3"  # Complex: long text or compound intent
+
+# Weight presets per complexity level
+_COMPLEXITY_WEIGHTS: dict[str, dict[str, float]] = {
+    COMPLEXITY_L1: {"fts_weight": 0.55, "vec_weight": 0.45},
+    COMPLEXITY_L2: {"fts_weight": 0.40, "vec_weight": 0.60},
+    COMPLEXITY_L3: {"fts_weight": 0.30, "vec_weight": 0.70},
+}
+
+
+def classify_query_complexity(query: str) -> str:
+    """Classify query complexity into L1/L2/L3 for adaptive retrieval.
+
+    L1 (Simple): short queries, single concepts → FTS5 dominant
+    L2 (Medium): moderate queries, some context → balanced
+    L3 (Complex): long queries, multiple concepts → vec dominant
+
+    Criteria:
+    - Token count
+    - Presence of proper nouns
+    - Temporal expressions
+    - Quoted phrases
+    - Question complexity (compound questions)
+    """
+    tokens = re.findall(r"[a-zA-Z0-9']+", query)
+    content_tokens = [t for t in tokens if t.lower() not in _CLASSIFY_STOPWORDS and len(t) > 1]
+    token_count = len(content_tokens)
+
+    # W2: CJK/non-Latin queries get zero ASCII tokens → default to L2 (vec-heavy)
+    # since FTS5 porter tokenizer has poor CJK recall
+    has_cjk = bool(re.search(r'[\u3000-\u9fff\uac00-\ud7af]', query))
+    if token_count == 0 and has_cjk:
+        return COMPLEXITY_L2
+    # Mixed CJK+ASCII: CJK presence pushes toward vec-heavy
+    if has_cjk:
+        complexity_score_cjk_bonus = 2
+    else:
+        complexity_score_cjk_bonus = 0
+
+    has_quotes = bool(re.search(r"""['"][^'"]+['"]""", query))
+    has_temporal = bool(TEMPORAL_PHRASES.search(query))
+    proper_noun_count = sum(
+        1 for i, w in enumerate(query.split())
+        if i > 0 and w[0:1].isupper() and w.lower() not in _CLASSIFY_STOPWORDS
+    )
+
+    complexity_score = token_count + complexity_score_cjk_bonus
+    if has_quotes:
+        complexity_score += 2
+    if has_temporal:
+        complexity_score += 2
+    complexity_score += proper_noun_count
+
+    if complexity_score <= 2:
+        return COMPLEXITY_L1
+    if complexity_score <= 6:
+        return COMPLEXITY_L2
+    return COMPLEXITY_L3
+
+
+# Minimal stopwords for complexity classification (avoid importing full set before definition)
+_CLASSIFY_STOPWORDS = frozenset({
+    "i", "me", "my", "we", "our", "you", "your", "he", "she", "it", "they",
+    "a", "an", "the", "and", "but", "or", "if", "is", "are", "was", "were",
+    "be", "been", "have", "has", "had", "do", "does", "did", "of", "at",
+    "by", "for", "with", "to", "from", "in", "on", "what", "which", "who",
+    "how", "when", "where", "why", "this", "that", "about",
+})
+
+
+# -- Intent-Aware Router (Growth Radar #131: MAGMA-inspired) --
+
+INTENT_WHAT = "WHAT"  # Factual retrieval
+INTENT_WHEN = "WHEN"  # Temporal retrieval
+INTENT_WHY = "WHY"    # Causal reasoning
+INTENT_WHO = "WHO"    # Entity/person retrieval
+INTENT_GENERAL = "GENERAL"  # No specific intent detected
+
+# Boost overrides per intent (applied on top of complexity weights)
+_INTENT_BOOST_OVERRIDES: dict[str, dict[str, float]] = {
+    INTENT_WHAT: {
+        "keyword_boost": 0.5,     # ↑ factual keywords matter more
+        "bigram_boost": 0.7,      # ↑ exact phrases matter
+    },
+    INTENT_WHEN: {
+        "temporal_content_boost": 0.6,  # ↑ temporal context
+    },
+    INTENT_WHY: {
+        "vec_weight_delta": 0.10,  # ↑ semantic similarity for causality
+        "keyword_boost": 0.2,      # ↓ keywords less relevant
+    },
+    INTENT_WHO: {
+        "proper_noun_boost": 0.6,  # ↑ names matter
+    },
+    INTENT_GENERAL: {},
+}
+
+_INTENT_PATTERNS: dict[str, re.Pattern[str]] = {
+    INTENT_WHEN: re.compile(
+        r"(?:\b(?:when|date|timeline)\b|いつ|何時|時期|日付)", re.IGNORECASE
+    ),
+    INTENT_WHY: re.compile(
+        r"(?:\b(?:why|because|reason|cause)\b|なぜ|どうして|理由|原因)", re.IGNORECASE
+    ),
+    INTENT_WHO: re.compile(
+        r"(?:\b(?:who|author|person|name)\b|誰|だれ|名前)", re.IGNORECASE
+    ),
+    INTENT_WHAT: re.compile(
+        r"(?:\b(?:what|define|definition|describe)\b|何|なに|概要|説明)", re.IGNORECASE
+    ),
+}
+
+
+def classify_query_intent(query: str) -> str:
+    """Classify query intent into WHAT/WHEN/WHY/WHO/GENERAL.
+
+    Uses question word patterns and keyword heuristics.
+    Priority: WHY > WHEN > WHO > WHAT > GENERAL
+    (WHY is highest because causal queries need the most routing adjustment)
+    """
+    for intent in (INTENT_WHY, INTENT_WHEN, INTENT_WHO, INTENT_WHAT):
+        if _INTENT_PATTERNS[intent].search(query):
+            return intent
+    return INTENT_GENERAL
+
+
+
 STOPWORDS = frozenset({
     "i", "me", "my", "myself", "we", "our", "ours", "ourselves",
     "you", "your", "yours", "yourself", "yourselves",
@@ -413,7 +544,11 @@ def sanitize_fts(query: str) -> str:
 
 
 def _sanitize_fts_or(query: str) -> str:
-    """FTS5 query using OR mode with stopword removal for broader recall."""
+    """FTS5 query using OR mode with stopword removal and noun phrase expansion.
+
+    Phase 2 enhancement (#105 TrueMemory-inspired):
+    Adds noun phrases to the FTS5 query for improved recall without LLM dependency.
+    """
     keywords = _extract_content_keywords(query)
     if not keywords:
         raw_tokens = query.strip().split()
@@ -421,7 +556,27 @@ def _sanitize_fts_or(query: str) -> str:
         if not tokens:
             raise ValueError("FTS query must not be empty")
         keywords = tokens[:3]
-    return " OR ".join(f'"{kw}"' for kw in keywords)
+
+    # Phase 2: Noun phrase expansion for FTS5 recall improvement
+    noun_phrases = _extract_noun_phrases(query)
+    keyword_set = set(keywords)
+    expanded_phrases: list[str] = []
+    for np in noun_phrases:
+        np_words = set(np.split())
+        # Skip if all words already covered by individual keywords
+        if not np_words.issubset(keyword_set):
+            expanded_phrases.append(np)
+
+    terms = [f'"{kw}"' for kw in keywords]
+    for phrase in expanded_phrases[:3]:  # Cap at 3 noun phrases to avoid FTS5 overload
+        # Noun phrases as NEAR queries for phrase proximity matching
+        words = phrase.split()
+        if len(words) == 2:
+            terms.append(f'NEAR("{words[0]}" "{words[1]}", 2)')
+        elif len(words) == 3:
+            terms.append(f'NEAR("{words[0]}" "{words[1]}" "{words[2]}", 3)')
+
+    return " OR ".join(terms)
 
 
 def rrf_hybrid_search(
@@ -445,9 +600,10 @@ def rrf_hybrid_search(
     Enhanced RRF hybrid search: FTS5 OR-mode + sqlite-vec + multi-signal boosting.
 
     Pipeline:
+    0. Query complexity classification (L1/L2/L3) → adaptive weight selection
     1. FTS5 OR-mode → broad keyword candidates
     2. sqlite-vec → semantic similarity candidates
-    3. RRF score fusion (k=30, w=0.40/0.60)
+    3. RRF score fusion (k=30, adaptive weights)
     4. IDF-weighted keyword overlap boost
     5. Bigram / proper noun / temporal context boost
     6. Decay-adjusted effective strength
@@ -458,6 +614,40 @@ def rrf_hybrid_search(
     VEC_INITIAL_MULTIPLIER = 10
     VEC_MAX_K = 4096
     limit = min(limit, MAX_SEARCH_LIMIT)
+
+    # Phase 1: Adaptive Query-Aware Retrieval (#110 SimpleMem)
+    # Only override weights when caller used defaults (0.40/0.60)
+    query_complexity = classify_query_complexity(query)
+    caller_used_defaults = (
+        abs(fts_weight - 0.40) < 1e-9 and abs(vec_weight - 0.60) < 1e-9
+    )
+    if caller_used_defaults:
+        adaptive = _COMPLEXITY_WEIGHTS[query_complexity]
+        fts_weight = adaptive["fts_weight"]
+        vec_weight = adaptive["vec_weight"]
+
+    # Phase 3a: Intent-Aware Router (#131 MAGMA)
+    # Only apply intent overrides when caller used default boost values
+    _DEFAULT_BOOSTS = {
+        "keyword_boost": 0.3,
+        "bigram_boost": 0.5,
+        "proper_noun_boost": 0.3,
+        "temporal_content_boost": 0.3,
+    }
+    query_intent = classify_query_intent(query)
+    intent_overrides = _INTENT_BOOST_OVERRIDES.get(query_intent, {})
+    if "keyword_boost" in intent_overrides and abs(keyword_boost - _DEFAULT_BOOSTS["keyword_boost"]) < 1e-9:
+        keyword_boost = intent_overrides["keyword_boost"]
+    if "bigram_boost" in intent_overrides and abs(bigram_boost - _DEFAULT_BOOSTS["bigram_boost"]) < 1e-9:
+        bigram_boost = intent_overrides["bigram_boost"]
+    if "proper_noun_boost" in intent_overrides and abs(proper_noun_boost - _DEFAULT_BOOSTS["proper_noun_boost"]) < 1e-9:
+        proper_noun_boost = intent_overrides["proper_noun_boost"]
+    if "temporal_content_boost" in intent_overrides and abs(temporal_content_boost - _DEFAULT_BOOSTS["temporal_content_boost"]) < 1e-9:
+        temporal_content_boost = intent_overrides["temporal_content_boost"]
+    if "vec_weight_delta" in intent_overrides and caller_used_defaults:
+        delta = intent_overrides["vec_weight_delta"]
+        vec_weight = min(vec_weight + delta, 0.85)
+        fts_weight = max(fts_weight - delta, 0.15)
 
     fts_match = _sanitize_fts_or(query)
     if project:
@@ -506,7 +696,12 @@ def rrf_hybrid_search(
         return scores
 
     vec_k = min(limit * VEC_INITIAL_MULTIPLIER, VEC_MAX_K)
-    vec_rows = fetch_vec_rows(vec_k)
+    try:
+        vec_rows = fetch_vec_rows(vec_k)
+    except sqlite3.OperationalError as vec_err:
+        import logging as _log
+        _log.getLogger(__name__).warning("Vec query failed: %s", vec_err)
+        vec_rows = []
     scores = compute_rrf(fts_rows, vec_rows)
 
     if project:
@@ -518,7 +713,10 @@ def rrf_hybrid_search(
             if len(vec_rows) < vec_k:
                 break
             vec_k = min(vec_k * 2, VEC_MAX_K)
-            vec_rows = fetch_vec_rows(vec_k)
+            try:
+                vec_rows = fetch_vec_rows(vec_k)
+            except sqlite3.OperationalError:
+                break
             scores = compute_rrf(fts_rows, vec_rows)
 
     ranked_ids = sorted(scores, key=scores.__getitem__, reverse=True)
@@ -601,7 +799,27 @@ def rrf_hybrid_search(
         obs["boost"] = boost
         obs["effective_strength"] = effective_strength
         obs["effective_score"] = base_score * boost * effective_strength
+        obs["query_complexity"] = query_complexity
+        obs["query_intent"] = query_intent
         results.append(obs)
+
+    # Phase 3b: Graph-boosted reranking (#131 MAGMA)
+    # Boost results reachable via intent-relevant graph edges
+    if query_intent != INTENT_GENERAL and results:
+        try:
+            from .graph import graph_search as _graph_search
+            top_ids = [int(r["id"]) for r in sorted(
+                results, key=lambda x: float(x["effective_score"]), reverse=True
+            )[:3]]
+            graph_ids = set(_graph_search(db, query_intent, top_ids, max_depth=1))
+            if graph_ids:
+                _GRAPH_BOOST = 1.15
+                for obs in results:
+                    if int(obs["id"]) in graph_ids:
+                        obs["effective_score"] = float(obs["effective_score"]) * _GRAPH_BOOST
+                        obs["graph_boosted"] = True
+        except Exception:
+            pass  # graph layer is optional; degrade gracefully
 
     results.sort(key=lambda item: float(item["effective_score"]), reverse=True)
     return results[:limit]

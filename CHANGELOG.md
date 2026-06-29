@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-06-29
+
+### Added — VMG (Verifiable Memory Governance) #151
+
+VMG の2 primitive（Provenance Visibility / Verified Forgetting）を MCP コアに配線。後方互換（破壊変更なし）・`schema_version` 据え置き（provenance は既存 `metadata` 列内）。
+
+- **Provenance Visibility**: 全保存経路（`erinys_save` / `erinys_batch_save` / `distill` / `save_session_summary` / `supersede`）が `metadata.provenance` = `{schema, principal, source, derived_via, parents, recorded_at}` を自動付与。出自はサーバ管理で、呼び出し側が渡した provenance は上書きする。単一定義元 `provenance.py:build_provenance`。`erinys_save` に `principal` 引数を追加（env `ERINYS_PRINCIPAL` → `"unknown"` フォールバック）
+- **`erinys_lineage(id, max_depth=10)`** (新 MCP ツール): provenance.parents（無ければ distilled_from）を祖先方向に辿り lineage-complete な系譜を返す。root 不在は NOT_FOUND・深さ100上限・循環安全・親欠落は許容
+- **`erinys_forget(id, dry_run=True)`** (新 MCP ツール): 記憶 + distilled 派生 closure を leaf-first 単一トランザクションで削除し、membership test で全 DB substrate（observations / vec_observations / FTS / edges / collisions）残存ゼロを実証（`residual` / `complete`）。`erinys_delete` と異なり子を持つ親も忘却可（distilled_from NO ACTION FK を closure で解消、29,679 行が該当）。closure 探索は反復 post-order DFS（深い連鎖でも RecursionError なし）。closure 外からの `superseded_by` 参照は NULL 化。Obsidian 書庫 / `.bak` は DB 外として検証範囲外を明示
+- **`scripts/backfill_provenance.py`**: 既存行へ provenance を後付け（冪等・dry-run 既定・WAL 安全 backup API・BEGIN IMMEDIATE 下走査・既存バックアップ非破壊）。任意（lineage / forget は distilled_from フォールバックで旧行でも動作）
+- `erinys_update` は metadata 全置換時も既存 provenance を保全
+- Codex 3+周のレビュー（再帰深さ / provenance-only 親 / FTS 健全性 / WAL backup / TOCTOU 等）で発見した P1-P3 を全解消。ERINYS パッケージ 129 tests green
+
 ### Added — JSON CLI（CLI-first / MCP-thin-adapter 移行 第一フェーズ + hardening）
 
 - `erinys_memory/cli.py`: 自動化向け JSON CLI（`save` / `summary` / `get` / `search` / `recall` / `context` / `stats` / `undistilled` / `distill` / `dream` / `prune` / `health`）。プロジェクト側ラッパーは `.agent/scripts/erinys_cli.py`
