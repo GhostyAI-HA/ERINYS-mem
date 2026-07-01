@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import sqlite3
+from erinys_memory._sqlite import sqlite3
 from pathlib import Path
 from threading import Thread
 from time import monotonic, sleep

@@ -2,6 +2,43 @@
 
 ## [Unreleased]
 
+## [0.4.1] — 2026-07-01 — release-readiness hardening
+
+### Fixed — SQLite extension portability (release blocker)
+
+- **`sqlite-vec` now loads on interpreters built without loadable-extension
+  support.** Previously the package crashed at connection time with a cryptic
+  `AttributeError: 'sqlite3.Connection' object has no attribute
+  'enable_load_extension'` on macOS system Python and pyenv builds — the test
+  suite was 178/193 errors on such interpreters. A single selector module
+  (`erinys_memory._sqlite`) now chooses stdlib `sqlite3` when it is capable and
+  falls back to `pysqlite3` otherwise; **every module imports `sqlite3` from
+  this selector** so exception classes (`IntegrityError`, `OperationalError`, …)
+  stay identical across the codebase (previously `except sqlite3.X` clauses in
+  `server`/`search`/`cli`/`distill` could silently miss `pysqlite3` errors).
+  When neither implementation can load extensions, an **actionable** error with
+  remediation is raised instead of the `AttributeError`.
+
+### Added
+
+- **`erinys doctor`** — environment diagnostics for Python, the selected SQLite
+  implementation + extension support, `sqlite-vec` loadability, embeddings,
+  declared dependencies, and the DB. Each failing check carries a `fix`.
+- **Console entry points** — `erinys` (JSON CLI) and `erinys-memory` (MCP server)
+  via `[project.scripts]`, so `pip install` yields a runnable `erinys` command.
+- **CI build job** — builds the wheel/sdist, installs into an isolated env, and
+  runs `erinys doctor` as an install smoke test (in addition to the test matrix).
+- **`erinys-memory[fallback]` extra** — pulls `pysqlite3-binary` (Linux wheels)
+  for interpreters lacking extension support.
+- **[docs/LIMITATIONS.md](docs/LIMITATIONS.md)** — Python requirements, retrieval
+  recall vs E2E QA, temporal/abstention gaps, verified-forgetting scope, CJK,
+  and scale caveats.
+
+### Changed
+
+- `pydantic` is now a declared dependency (it is imported directly by `cli.py`)
+  rather than relied upon transitively via `fastmcp`.
+
 ## [0.4.0] — 2026-06-29
 
 ### Added — VMG (Verifiable Memory Governance) #151

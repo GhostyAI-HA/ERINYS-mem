@@ -2,7 +2,7 @@
 """engram + episodic JSONL → ERINYS 一括移行スクリプト"""
 
 import json
-import sqlite3
+from erinys_memory._sqlite import sqlite3
 import sys
 from datetime import datetime, timezone
 from pathlib import Path

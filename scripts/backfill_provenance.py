@@ -22,7 +22,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import sqlite3
+from erinys_memory._sqlite import sqlite3
 import sys
 from pathlib import Path
 

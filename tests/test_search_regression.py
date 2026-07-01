@@ -13,7 +13,7 @@ FTS-side scoring, boost logic, intent routing, and result structure.
 from __future__ import annotations
 
 import math
-import sqlite3
+from erinys_memory._sqlite import sqlite3
 import sys
 from pathlib import Path
 

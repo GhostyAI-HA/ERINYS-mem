@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import sqlite3
+from erinys_memory._sqlite import sqlite3
 import struct
 import sys
 from pathlib import Path

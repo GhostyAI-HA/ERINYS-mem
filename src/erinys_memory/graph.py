@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-import sqlite3
+from ._sqlite import sqlite3
 from collections import deque
 from typing import Any, Sequence
 

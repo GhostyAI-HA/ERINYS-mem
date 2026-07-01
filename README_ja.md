@@ -2,13 +2,15 @@
   <img src="assets/logo.png" alt="ERINYS" width="600">
 </p>
 
-# ERINYS — AIエージェントのための反射記憶
+# ERINYS — AIエージェントのための検証可能なローカル記憶
 
-**LongMemEval-S (`_s` split) Recall@5 100% · LoCoMo 94% · ConvoMem 98% — 検索パイプラインのLLM呼び出しゼロ。**
+**v0.4.1** · **ローカル検索10ms。APIキー不要。トークン課金ゼロ。**
 
-[🇬🇧 English](README.md)
+LongMemEval-S（`_s` split）の検索リコールは100%。エンドツーエンドのQA精度は評価中 — [docs/LIMITATIONS.md](docs/LIMITATIONS.md) 参照。
 
-> **あった記憶から、なかった記憶すら生み出す。**
+[🇬🇧 English](README.md) · [制約事項](docs/LIMITATIONS.md) · [比較](./docs/COMPARISON.md)
+
+事実を保存し、履歴を残し、矛盾を捕まえ、削除を証明する。エージェント記憶のためのローカル信頼レイヤー — SQLiteファイル1つ、検索時のLLM呼び出しはゼロ。
 
 AIエージェントの記憶システムは、人間の記憶を模倣してきた。短期記憶、長期記憶、エピソード記憶、意味記憶。教科書通りの分類をそのまま実装に持ち込む。
 
@@ -20,13 +22,54 @@ AIエージェントの記憶システムは、人間の記憶を模倣してき
 
 その違和感がERINYSを呼んだ。
 
-ERINYSは番犬だ。覚え、忘れ、疑い、噛む。
+ERINYSは番犬だ。事実を保存し、履歴を残し、矛盾を捕まえ、削除を証明する。
 
 > **出自:** ERINYSは[HyperAION](https://github.com/GhostyAI-HA)（AIエージェント自己改善フレームワーク）の検索レイヤーとして開発された。スタンドアロンのMCPサーバーとして公開しており、どのエージェントスタックからでも独立して利用できる。
 
+## クイックスタート（30秒）
+
+**1. インストール。**
+
+```bash
+pip install erinys-memory
+```
+
+**2. 環境を検証。** 1コマンドでPython・SQLite拡張サポート・sqlite-vec・埋め込み・依存・DBをチェックする。失敗した項目には `fix`（対処法）が出る。
+
+```bash
+erinys doctor
+```
+
+**3. MCPサーバーを登録。** クライアント（Claude Desktop / Claude Code / stdio対応のMCPホスト）に追加する。
+
+```json
+{
+  "mcpServers": {
+    "erinys": {
+      "command": "erinys-memory",
+      "env": {
+        "ERINYS_DB_PATH": "~/.erinys/memory.db"
+      }
+    }
+  }
+}
+```
+
+**4. 保存して検索。** JSON CLIから実行（LLM不要・ネットワーク不要）。
+
+```bash
+erinys save --title "JWTのhttpOnlyフラグ漏れ" \
+  --content "CookieがJSからアクセス可能だった。httpOnly, secure, sameSite=strictを追加。" \
+  --type bugfix --project demo
+
+erinys search "認証 Cookie セキュリティ" --project demo
+```
+
+検索はローカルのSQLiteファイル1つに対して約7〜10ms、LLM呼び出しゼロで走る。次に読むなら [制約事項](docs/LIMITATIONS.md) · [比較](./docs/COMPARISON.md)。
+
 ## ベンチマーク
 
-全結果、同一モード（`enhanced_v2_boost`）で検索パイプラインに**LLM呼び出しゼロ**。注: 上位機能（Dream Cycle、蒸留）はLLMを使用する — 下記参照。
+以下は**検索リコール**の数値（正しいセッションがTop-Kに入っているか）であり、エンドツーエンドのQA精度ではない。LongMemEval-S（`_s` split）の検索リコールは100%、エンドツーエンドのQA精度は評価中 — [docs/LIMITATIONS.md](docs/LIMITATIONS.md) 参照。全結果は同一モード（`enhanced_v2_boost`）で検索パイプラインに**LLM呼び出しゼロ**。注: 上位機能（Dream Cycle、蒸留）はLLMを使用する — 下記参照。
 
 | ベンチマーク | N | R@5 | R@10 | 平均レイテンシ |
 |:--|:--|:--|:--|:--|
@@ -47,6 +90,8 @@ ERINYSは番犬だ。覚え、忘れ、疑い、噛む。
 **蒸留。** 具体的なバグ修正（「JWTのhttpOnlyフラグ漏れ」）から3層を自動生成する。事実→パターン（「新規エンドポイントにはセキュリティチェックリストが必要」）→原則（「セキュリティのデフォルトは安全側に倒すべき」）。プロジェクトを超えて使える教訓を記憶から抽出する。他のメモリシステムに蒸留機能はない。⚠️ *蒸留の抽象/メタ層生成にはLLM呼び出しが必要。*
 
 **Dream Cycle。** 過去のメモ2つをLLMに渡して「関連はある？」と聞く。候補ペアは意味的類似度で選定。近すぎず（重複）遠すぎず（無関係）のスイートスポット（コサイン0.65–0.90）だけ。現在は`erinys_dream`の手動呼び出しのみ。⚠️ *Dream CycleはLLM呼び出しを使用する — ゼロLLM検索パイプラインの一部ではない。*
+
+> 蒸留とDream CycleはERINYSの生成的な一面だ。あった記憶から、なかった記憶すら合成する。どちらもLLMを使い、ゼロLLM検索の経路の外側で動く。
 
 ## 設計思想
 

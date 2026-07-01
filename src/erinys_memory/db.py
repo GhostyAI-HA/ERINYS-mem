@@ -7,8 +7,8 @@ import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Mapping
-import sqlite3
 
+from ._sqlite import sqlite3
 from .config import ErinysConfig
 from .embedding import EMBEDDING_MODEL, EmbeddingEngine, serialize_f32
 
@@ -123,6 +123,19 @@ def _register_datetime_codec() -> None:
 def _load_sqlite_vec(db: sqlite3.Connection) -> None:
     import sqlite_vec
 
+    if not hasattr(db, "enable_load_extension"):
+        raise RuntimeError(
+            "This Python cannot load SQLite extensions, so sqlite-vec (ERINYS's "
+            "vector index) is unavailable. Your interpreter was built without "
+            "--enable-loadable-sqlite-extensions (common on macOS system Python "
+            "and pyenv builds). Fix by either:\n"
+            "  • using a Python that supports it — python.org, Homebrew, and "
+            "conda builds all do; or\n"
+            "  • installing a compatible pysqlite3 so ERINYS can fall back to it "
+            "(e.g. `pip install pysqlite3-binary` where wheels exist for your "
+            "platform).\n"
+            "See docs/LIMITATIONS.md → 'Python requirements' for details."
+        )
     db.enable_load_extension(True)
     try:
         load = getattr(sqlite_vec, "load", None)

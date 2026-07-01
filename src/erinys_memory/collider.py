@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import math
-import sqlite3
+from ._sqlite import sqlite3
 import struct
 from typing import Any
 

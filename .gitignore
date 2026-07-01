@@ -40,3 +40,7 @@ Thumbs.db
 src/sitecustomize.py
 src/pysqlite3/
 src/pysqlite3-*.dist-info/
+dist/
+.venv/
+*.pyc
+__pycache__/

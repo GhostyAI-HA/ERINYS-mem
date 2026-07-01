@@ -1,6 +1,6 @@
 [project]
 name = "erinys-memory"
-version = "0.4.0"
+version = "0.4.1"
 description = "Reflexive Memory for AI Agents — MCP Server"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -24,6 +24,9 @@ dependencies = [
     "fastmcp>=3.2.0",
     "sqlite-vec>=0.1.6",
     "fastembed>=0.4.0",
+    # pydantic is imported directly (cli.py); declare it rather than relying on
+    # fastmcp pulling it transitively.
+    "pydantic>=2.0",
 ]
 
 [project.optional-dependencies]
@@ -32,6 +35,17 @@ dev = [
     "pytest-asyncio>=0.24",
     "pytest-cov>=5.0",
 ]
+# Fallback SQLite for interpreters built WITHOUT loadable-extension support
+# (some macOS system Python / pyenv builds). Only needed when `erinys doctor`
+# reports that the sqlite-vec extension cannot load. Wheels are published mainly
+# for Linux; see docs/LIMITATIONS.md → "Python requirements".
+fallback = [
+    "pysqlite3-binary; platform_system == 'Linux'",
+]
+
+[project.scripts]
+erinys = "erinys_memory.cli:main"
+erinys-memory = "erinys_memory.server:main"
 
 [project.urls]
 Homepage = "https://github.com/GhostyAI-HA/ERINYS-mem"

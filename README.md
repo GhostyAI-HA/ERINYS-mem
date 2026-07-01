@@ -2,13 +2,15 @@
   <img src="assets/logo.png" alt="ERINYS" width="600">
 </p>
 
-# ERINYS — Reflexive Memory for AI Agents
+# ERINYS — Verifiable local memory for AI agents
 
-**v0.4.0** · **100% Recall@5 on LongMemEval-S (`_s` split) · 94% on LoCoMo · 98% on ConvoMem — Zero LLM calls in the retrieval pipeline.**
+**v0.4.1** · **10ms local retrieval. No API key. No token cost.**
 
-[🇯🇵 日本語版 / Japanese](README_ja.md)
+Retrieval recall 100% on LongMemEval-S (`_s` split); end-to-end QA accuracy pending — see [docs/LIMITATIONS.md](docs/LIMITATIONS.md).
 
-> **From memories that existed, it even creates memories that never did.**
+[🇯🇵 日本語版 / Japanese](README_ja.md) · [Limitations](docs/LIMITATIONS.md) · [Comparison](./docs/COMPARISON.md)
+
+Stores facts, preserves history, catches contradictions, and proves deletion. A local trust layer for agent memory — one SQLite file, zero LLM calls in retrieval.
 
 AI agent memory systems have always mimicked human memory. Short-term, long-term, episodic, semantic — textbook categories bolted straight onto implementations.
 
@@ -20,9 +22,50 @@ What needed to be mimicked wasn't the taxonomy of memory. It was the behavior.
 
 That discomfort is what summoned ERINYS.
 
-ERINYS is a guard dog. It remembers, forgets, questions, and bites.
+ERINYS is a guard dog. It stores facts, preserves history, catches contradictions, and proves deletion.
 
 > **Origin:** ERINYS was built as the retrieval layer for [HyperAION](https://aionexo.com/hyperaion/), an AI agent self-improvement framework. It is released as a standalone MCP server so any agent stack can use it independently.
+
+## Quickstart (30 seconds)
+
+**1. Install.**
+
+```bash
+pip install erinys-memory
+```
+
+**2. Verify your environment.** One command checks Python, SQLite + extension support, sqlite-vec, embeddings, deps, and the DB — each failing check prints a `fix`.
+
+```bash
+erinys doctor
+```
+
+**3. Register the MCP server** with your client (Claude Desktop / Claude Code / any stdio MCP host):
+
+```json
+{
+  "mcpServers": {
+    "erinys": {
+      "command": "erinys-memory",
+      "env": {
+        "ERINYS_DB_PATH": "~/.erinys/memory.db"
+      }
+    }
+  }
+}
+```
+
+**4. Save and search** from the JSON CLI (no LLM, no network):
+
+```bash
+erinys save --title "JWT httpOnly flag was missing" \
+  --content "Cookie was JS-accessible; added httpOnly, secure, sameSite=strict." \
+  --type bugfix --project demo
+
+erinys search "auth cookie security" --project demo
+```
+
+Retrieval runs in ~7–10ms against a single local SQLite file, with zero LLM calls. Next steps: [Limitations](docs/LIMITATIONS.md) · [Comparison](./docs/COMPARISON.md).
 
 ## CLI-First Operations
 
@@ -72,7 +115,7 @@ Schema upgraded to v2 with automatic migration from v1.
 
 ## Benchmarks
 
-All results use the same mode (`enhanced_v2_boost`) with **zero LLM calls** in the retrieval pipeline. Note: higher-level features (Dream Cycle, Distillation) do use an LLM — see below.
+These are **retrieval recall** numbers (is the correct session in the Top-K?), not end-to-end QA accuracy. Retrieval recall 100% on LongMemEval-S (`_s` split); end-to-end QA accuracy pending — see [docs/LIMITATIONS.md](docs/LIMITATIONS.md). All results use the same mode (`enhanced_v2_boost`) with **zero LLM calls** in the retrieval pipeline. Note: higher-level features (Dream Cycle, Distillation) do use an LLM — see below.
 
 | Benchmark | N | R@5 | R@10 | Avg Latency |
 |:--|:--|:--|:--|:--|
@@ -93,6 +136,8 @@ The story of how we got to 100% → [🇯🇵 Japanese](docs/benchmark_story_ja.
 **Distillation.** A specific bugfix ("JWT httpOnly flag was missing") automatically generates three layers: the concrete fact → a reusable pattern ("new endpoints need a security checklist") → a universal principle ("security defaults should be safe without opt-in"). No other memory system does this. ⚠️ *Distillation requires an LLM call to generate the abstract/meta layers. v0.2.0 adds quality scoring per distillation level.*
 
 **Dream Cycle.** Two memories are fed to an LLM: "is there a connection?" Candidate pairs are selected by semantic similarity — close enough to be related (cosine > 0.65), far enough to not be redundant (< 0.90). Currently triggered manually via `erinys_dream`. ⚠️ *Dream Cycle requires LLM calls — it is not part of the zero-LLM retrieval pipeline. v0.2.0 adds automatic outcome scoring (novelty/relevance/serendipity).*
+
+> Distillation and the Dream Cycle are the generative edge of ERINYS: from memories that existed, it even synthesizes memories that never did. Both are LLM-backed and live outside the zero-LLM retrieval path.
 
 **Adaptive Search (v0.2.0).** Query complexity is classified automatically. Simple keyword lookups stay FTS-heavy. Complex multi-hop questions shift to vector-heavy retrieval. CJK queries and mixed CJK+ASCII queries are routed to vector search by default, where embedding models outperform FTS5's porter tokenizer on non-Latin scripts.
 

@@ -7,7 +7,7 @@ import logging
 import math
 import re
 import shutil
-import sqlite3
+from ._sqlite import sqlite3
 import struct
 import tempfile
 from datetime import datetime, timezone

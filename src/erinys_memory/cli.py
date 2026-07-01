@@ -9,7 +9,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import sqlite3
+from ._sqlite import sqlite3
 import sys
 from collections.abc import Callable
 from datetime import date, datetime, timezone
@@ -30,7 +30,7 @@ EXIT_ERROR = 1
 EXIT_USAGE = 2
 JSON_INDENT = 2
 EXCERPT_LENGTH = 240
-LOCAL_COMMANDS = {"stats", "health", "undistilled"}
+LOCAL_COMMANDS = {"stats", "health", "undistilled", "doctor"}
 READONLY_COMMANDS = {"search", "recall", "context"}
 WRITE_COMMANDS = {"save", "summary", "distill", "dream", "prune"}
 SANDBOX_DB_WRITE_REQUIRED = "SANDBOX_DB_WRITE_REQUIRED"
@@ -55,6 +55,7 @@ ValidCommand: TypeAlias = Literal[
     "dream",
     "prune",
     "health",
+    "doctor",
 ]
 ValidType: TypeAlias = Literal[
     "manual",
@@ -145,6 +146,7 @@ def build_parser() -> argparse.ArgumentParser:
     add_dream_parser(subparsers)
     add_prune_parser(subparsers)
     add_health_parser(subparsers)
+    add_doctor_parser(subparsers)
     return parser
 
 
@@ -246,6 +248,23 @@ def add_health_parser(
         action="store_true",
         default=False,
         help="also verify server import and run a search smoke test (authoritative check)",
+    )
+    add_json_flag(parser)
+
+
+def add_doctor_parser(
+    subparsers: argparse._SubParsersAction[argparse.ArgumentParser],
+) -> None:
+    parser = subparsers.add_parser(
+        "doctor",
+        help="diagnose the environment: Python, SQLite/sqlite-vec, embeddings, deps, DB",
+    )
+    add_project_arg(parser)
+    parser.add_argument(
+        "--deep",
+        action="store_true",
+        default=False,
+        help="also import the MCP server and run a search smoke test",
     )
     add_json_flag(parser)
 
@@ -736,6 +755,127 @@ def run_health(args: CliArgs, server: object | None) -> dict[str, object]:
     return {"ok": False, "data": data, "error": error}
 
 
+def _check(status: str, detail: str, fix: str | None = None) -> dict[str, object]:
+    entry: dict[str, object] = {"status": status, "detail": detail}
+    if fix is not None:
+        entry["fix"] = fix
+    return entry
+
+
+def _doctor_python() -> dict[str, object]:
+    version = ".".join(str(part) for part in sys.version_info[:3])
+    return _check("ok", f"Python {version} on {sys.platform}")
+
+
+def _doctor_sqlite() -> dict[str, object]:
+    impl = "stdlib sqlite3" if sqlite3.__name__ == "sqlite3" else sqlite3.__name__
+    supports_ext = hasattr(sqlite3.connect(":memory:"), "enable_load_extension")
+    detail = f"{impl} (SQLite {sqlite3.sqlite_version}); loadable extensions: {supports_ext}"
+    if supports_ext:
+        return _check("ok", detail)
+    return _check(
+        "fail",
+        detail,
+        "Use a Python with extension support (python.org / Homebrew / conda), or "
+        "install a compatible pysqlite3 (`pip install 'erinys-memory[fallback]'` "
+        "where wheels exist). See docs/LIMITATIONS.md.",
+    )
+
+
+def _doctor_sqlite_vec() -> dict[str, object]:
+    try:
+        from erinys_memory.config import ErinysConfig
+        from erinys_memory.db import get_db
+
+        conn = get_db(ErinysConfig(db_path=":memory:", db_backup_on_init=False))
+        try:
+            vec_version = conn.execute("SELECT vec_version()").fetchone()[0]
+        finally:
+            conn.close()
+        return _check("ok", f"sqlite-vec loaded (vec_version {vec_version})")
+    except Exception as exc:  # noqa: BLE001 — surface the real remediation to the user
+        return _check(
+            "fail",
+            f"sqlite-vec cannot load: {exc}",
+            "Vector search is unavailable until this is fixed. See the sqlite check above.",
+        )
+
+
+def _doctor_embedding() -> dict[str, object]:
+    from erinys_memory.config import ErinysConfig
+
+    model = ErinysConfig().embedding_model
+    try:
+        import fastembed  # noqa: F401
+    except ImportError:
+        return _check("fail", "fastembed is not installed", "pip install fastembed")
+    return _check(
+        "ok",
+        f"fastembed available; model '{model}' (downloaded to cache on first embed)",
+    )
+
+
+def _doctor_dependencies() -> dict[str, object]:
+    from importlib.metadata import PackageNotFoundError, version
+
+    required = ["fastmcp", "sqlite-vec", "fastembed", "pydantic"]
+    found: dict[str, str] = {}
+    missing: list[str] = []
+    for name in required:
+        try:
+            found[name] = version(name)
+        except PackageNotFoundError:
+            missing.append(name)
+    if missing:
+        return _check(
+            "fail",
+            f"missing: {', '.join(missing)}; present: {found}",
+            "pip install erinys-memory",
+        )
+    return _check("ok", "; ".join(f"{k} {v}" for k, v in found.items()))
+
+
+def _doctor_db(project: str | None) -> dict[str, object]:
+    path = db_path()
+    if not path.exists():
+        return _check(
+            "warn",
+            f"no DB at {path} yet (created on first save)",
+        )
+    try:
+        with connect_readonly_db(path) as conn:
+            obs = observation_count(conn, None)
+            vec = vector_health(conn)
+        size_mb = round(path.stat().st_size / 1_048_576, 2)
+        vec_status = vec.get("status", "unknown")
+        status = "ok" if vec_status == "ok" else "warn"
+        return _check(status, f"{path} ({size_mb} MB, {obs} observations, vectors: {vec_status})")
+    except Exception as exc:  # noqa: BLE001
+        return _check("fail", f"cannot read DB at {path}: {exc}")
+
+
+def run_doctor(args: CliArgs, server: object | None) -> dict[str, object]:
+    checks: dict[str, object] = {
+        "python": _doctor_python(),
+        "sqlite": _doctor_sqlite(),
+        "sqlite_vec": _doctor_sqlite_vec(),
+        "embedding": _doctor_embedding(),
+        "dependencies": _doctor_dependencies(),
+        "db": _doctor_db(args.project),
+    }
+    if args.deep:
+        checks["server_import"] = _check("ok" if server is not None else "fail", "MCP server import")
+        smoke = deep_search_check(server)
+        checks["search_smoke"] = _check("ok" if smoke == "ok" else "fail", f"search smoke: {smoke}")
+    statuses = [str(entry.get("status")) for entry in checks.values() if isinstance(entry, dict)]
+    overall = "fail" if "fail" in statuses else ("degraded" if "warn" in statuses else "ok")
+    data = {"status": overall, "interface": "cli", "deep": args.deep, "checks": checks}
+    if overall == "ok":
+        return {"ok": True, "data": data, "error": None}
+    code = "UNHEALTHY" if overall == "fail" else "DEGRADED"
+    return {"ok": False, "data": data, "error": {"code": code, "message": f"doctor status={overall}; see data.checks (each failing check includes a 'fix')"}}
+
+
 HANDLERS: dict[ValidCommand, Callable[[CliArgs, object | None], dict[str, object]]] = {
     "save": run_save,
     "summary": run_summary,
@@ -749,6 +889,7 @@ HANDLERS: dict[ValidCommand, Callable[[CliArgs, object | None], dict[str, object
     "dream": run_dream,
     "prune": run_prune,
     "health": run_health,
+    "doctor": run_doctor,
 }
 
 
@@ -760,7 +901,7 @@ def dispatch(args: CliArgs, server: object | None) -> dict[str, object]:
 
 
 def server_for(args: CliArgs) -> object | None:
-    if args.command == "health":
+    if args.command in {"health", "doctor"}:
         return import_server() if args.deep else None
     if args.command in LOCAL_COMMANDS:
         return None

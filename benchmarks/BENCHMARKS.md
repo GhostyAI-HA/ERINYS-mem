@@ -32,6 +32,8 @@ All results use the same configuration: `enhanced_v2_boost` mode, `top_k=10`, BA
 
 These are retrieval recall scores: "Is the correct session in the top-K results?" Not end-to-end QA accuracy. The distinction matters — a system can have 100% retrieval recall and 40% QA accuracy, or vice versa.
 
+These are retrieval-recall numbers, not end-to-end QA accuracy; for known weak spots and boundaries see [../docs/LIMITATIONS.md](../docs/LIMITATIONS.md).
+
 ---
 
 ## LongMemEval-S (N=500)
@@ -164,26 +166,59 @@ The cost of this approach: temporal-inference questions (LoCoMo: 76.1%) remain h
 
 ---
 
-## Reproducing Results
+## Reproduction
 
-All results are deterministic. Same data + same code = same numbers.
+All results are deterministic. Same data + same code + same profile = same numbers. To make a run comparable, state every condition below — a number without its conditions is not reproducible.
+
+### Fixed conditions (what these numbers are)
+
+| Condition | Value |
+|:--|:--|
+| **Mode** | `enhanced_v2_boost` (the *same* mode across all three benchmarks — no per-benchmark tuning) |
+| **Reported top-k** | LongMemEval-S: **R@5** · LoCoMo: **R@5 / R@10** · ConvoMem: **R@k** |
+| **Metric** | Retrieval recall ("is the gold session in the top-K?"), **not** end-to-end QA accuracy |
+| **LongMemEval split** | `longmemeval_s` (the **`_s` split ONLY**) — `_m` is **not** run; `_oracle` is not run |
+| **LoCoMo dataset** | `locomo10.json` (10 conversations, 1,982 questions) |
+| **ConvoMem** | 5 categories × 50 items = 250, `--category all --limit 50` |
+| **Embedding profile** | English-only benchmark profile `BAAI/bge-small-en-v1.5` (384-dim). This differs from the runtime default — see [Embedding profile vs runtime default](#embedding-profile-vs-runtime-default) below |
+| **Backend** | SQLite (FTS5 + sqlite-vec), in-process, zero LLM calls in retrieval |
+| **Hardware** | Latencies (~7–10 ms) were measured on a laptop-class CPU (Apple Silicon, no GPU). Recall is hardware-independent; latency will vary with CPU, disk, and whether the embedding cache is warm. |
+
+### Exact commands
 
 ```bash
+# 0. Get the code
 git clone https://github.com/GhostyAI-HA/ERINYS-mem.git
 cd ERINYS-mem
 pip install -e ".[dev]"
 
-# LongMemEval-S (100.0% R@5)
+# 1. Fetch datasets (LoCoMo → /tmp/locomo-data; ConvoMem auto-downloads from HuggingFace)
+bash benchmarks/download_datasets.sh
+
+# 2a. Run each benchmark individually, in the reported mode
 python benchmarks/longmemeval_bench.py benchmarks/longmemeval_s_cleaned.json \
-  --mode enhanced_v2_boost --top-k 10
+  --mode enhanced_v2_boost --top-k 10          # LongMemEval-S: 100.0% R@5 (_s split only)
 
-# LoCoMo (94.0% R@5)
-python benchmarks/locomo_bench.py /path/to/locomo10.json \
-  --mode enhanced_v2_boost --top-k 10
+python benchmarks/locomo_bench.py /tmp/locomo-data/locomo10.json \
+  --mode enhanced_v2_boost --top-k 10          # LoCoMo: 94.0% R@5 / 98.1% R@10
 
-# ConvoMem (97.6% R@k)
-python benchmarks/convomem_bench.py --category all --limit 50
+python benchmarks/convomem_bench.py --category all --limit 50 \
+  --mode enhanced_v2_boost                      # ConvoMem: 97.6% R@k
+
+# 2b. …or run all three at once (same enhanced_v2_boost mode, prints the comparison table)
+python run_all_benchmarks.py
 ```
+
+`--top-k 10` controls how many results are scored; R@5 and R@10 are both computed from that window. `_s` questions have ~20 haystack sessions each, so a top-10 window is 50% coverage — recall at 5/10 is not trivially guaranteed. To reproduce `_m` you would need to fetch and pass the `_m` dataset; we have not done this, so no `_m` number is reported here.
+
+## Embedding profile vs runtime default
+
+**These two are not the same model, and the benchmark number depends on which one was used — always state it per run.**
+
+- **Benchmark profile (what the numbers above use):** `BAAI/bge-small-en-v1.5` (384-dim). This is an **English-only** profile. LongMemEval, LoCoMo, and ConvoMem are English datasets, so runs reported with this model are English-only benchmark runs and say nothing about non-English (e.g. CJK) retrieval.
+- **Runtime default (what you get from a fresh `pip install`):** `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` (multilingual, 384-dim), set in `src/erinys_memory/embedding.py`. This is the model the `erinys` CLI and `erinys-memory` MCP server use out of the box.
+
+Both are 384-dim, so they are drop-in interchangeable at the vector layer, but they are different models trained on different data — English recall may differ between them, and only the multilingual default is meaningful for non-English text. If you re-run these benchmarks under the runtime default (or any other model), report the numbers under that model's name; do not present them as the same result. For CJK behavior and other boundaries, see [../docs/LIMITATIONS.md](../docs/LIMITATIONS.md).
 
 ### Result files
 

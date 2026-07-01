@@ -10,7 +10,7 @@ import json
 import math
 import re
 from datetime import datetime, timedelta, timezone
-import sqlite3
+from ._sqlite import sqlite3
 from typing import Any, Sequence
 
 from .decay import current_strength
@@ -579,6 +579,68 @@ def _sanitize_fts_or(query: str) -> str:
     return " OR ".join(terms)
 
 
+def _build_why_included(
+    obs: dict[str, Any],
+    fts_rank_by_id: dict[int, int],
+    vec_rank_by_id: dict[int, int],
+) -> dict[str, Any]:
+    """Explain why this memory was retrieved.
+
+    Governance/explainability: every result carries the channels that surfaced
+    it (keyword vs semantic, with rank), the boost signals that fired, its score
+    breakdown, and its provenance — so an agent (or auditor) can see *why* a
+    memory was included, not just that it was.
+    """
+    obs_id = int(obs["id"])
+    channels: list[dict[str, Any]] = []
+    fts_rank = fts_rank_by_id.get(obs_id)
+    vec_rank = vec_rank_by_id.get(obs_id)
+    if fts_rank is not None:
+        channels.append({"channel": "keyword", "rank": fts_rank})
+    if vec_rank is not None:
+        channels.append({"channel": "semantic", "rank": vec_rank})
+
+    signals = list(obs.get("_why_signals", []))
+    if bool(obs.get("graph_boosted")):
+        signals.append(f"graph-reachable (intent={obs.get('query_intent')})")
+
+    # Provenance is out-of-band trust context; tolerate str or dict metadata.
+    provenance = None
+    metadata = obs.get("metadata")
+    if isinstance(metadata, str) and metadata:
+        try:
+            metadata = json.loads(metadata)
+        except (ValueError, TypeError):
+            metadata = None
+    if isinstance(metadata, dict):
+        provenance = metadata.get("provenance")
+
+    summary_bits: list[str] = []
+    if channels:
+        summary_bits.append(" + ".join(f"{c['channel']} rank {c['rank']}" for c in channels))
+    if signals:
+        summary_bits.append(", ".join(signals))
+    summary = ("matched via " + "; ".join(summary_bits)) if summary_bits else "ranked by hybrid fusion"
+
+    return {
+        "summary": summary,
+        "channels": channels,
+        "signals": signals,
+        "score": {
+            "rrf_score": round(float(obs.get("rrf_score", 0.0)), 6),
+            "boost": round(float(obs.get("boost", 1.0)), 4),
+            "effective_strength": round(float(obs.get("effective_strength", 1.0)), 4),
+            "effective_score": round(float(obs.get("effective_score", 0.0)), 6),
+            "graph_boosted": bool(obs.get("graph_boosted", False)),
+        },
+        "query": {
+            "complexity": obs.get("query_complexity"),
+            "intent": obs.get("query_intent"),
+        },
+        "provenance": provenance,
+    }
+
+
 def rrf_hybrid_search(
     db: sqlite3.Connection,
     query: str,
@@ -723,6 +785,11 @@ def rrf_hybrid_search(
     if not ranked_ids:
         return []
 
+    # Rank of each candidate within each channel — the raw evidence for
+    # `why_included` (which channel surfaced this memory, and how strongly).
+    fts_rank_by_id = {int(r[0]): int(r[1]) for r in fts_rows}
+    vec_rank_by_id = {int(r[0]): int(r[1]) for r in vec_rows}
+
     query_keywords = _extract_content_keywords(query)
     query_bigrams = _extract_bigrams(query)
     quoted_phrases = _extract_quoted_phrases(query)
@@ -766,27 +833,39 @@ def rrf_hybrid_search(
         content = str(obs.get("content", ""))
         content_lower = content.lower()
 
+        # `signals` records which boost sources fired, for `why_included`.
+        signals: list[str] = []
         kw_overlap = _compute_idf_keyword_overlap(query_keywords, content)
         bg_overlap = _compute_bigram_overlap(query_bigrams, content)
         boost = 1.0 + keyword_boost * kw_overlap + bigram_boost * bg_overlap
+        if kw_overlap > 0:
+            signals.append(f"keyword overlap ({kw_overlap:.2f})")
+        if bg_overlap > 0:
+            signals.append(f"bigram overlap ({bg_overlap:.2f})")
 
         for phrase in quoted_phrases:
             if phrase.lower() in content_lower:
                 boost += quoted_phrase_boost
+                signals.append(f'quoted phrase "{phrase}"')
 
         for noun in proper_nouns:
             if noun in content_lower:
                 boost += proper_noun_boost
+                signals.append(f'proper noun "{noun}"')
 
         np_boost_total = 0.0
         for np in noun_phrases:
             if np in content_lower:
                 np_boost_total += 1.0
         boost += min(np_boost_total, 1.0)
+        if np_boost_total > 0:
+            signals.append("noun-phrase match")
 
         if temporal and temporal_keywords:
             t_overlap = _compute_keyword_overlap(temporal_keywords, content)
             boost += (temporal_content_boost * 2.0) * t_overlap
+            if t_overlap > 0:
+                signals.append("temporal context")
 
         effective_strength = current_strength(
             float(obs["base_strength"]),
@@ -801,6 +880,7 @@ def rrf_hybrid_search(
         obs["effective_score"] = base_score * boost * effective_strength
         obs["query_complexity"] = query_complexity
         obs["query_intent"] = query_intent
+        obs["_why_signals"] = signals
         results.append(obs)
 
     # Phase 3b: Graph-boosted reranking (#131 MAGMA)
@@ -822,7 +902,11 @@ def rrf_hybrid_search(
             pass  # graph layer is optional; degrade gracefully
 
     results.sort(key=lambda item: float(item["effective_score"]), reverse=True)
-    return results[:limit]
+    top = results[:limit]
+    for obs in top:
+        obs["why_included"] = _build_why_included(obs, fts_rank_by_id, vec_rank_by_id)
+        obs.pop("_why_signals", None)
+    return top
 
 
 def collapse_by_session(

@@ -13,7 +13,7 @@ REPO_ROOT = os.path.dirname(os.path.abspath(__file__))
 # Use the current interpreter by default; allow override via ERINYS_BENCH_PYTHON.
 sys_python = os.environ.get("ERINYS_BENCH_PYTHON", sys.executable)
 
-for bench in benchmarks[1:]:
+for bench in benchmarks:
     print(f"Running {bench}...")
     try:
         subprocess.run([
