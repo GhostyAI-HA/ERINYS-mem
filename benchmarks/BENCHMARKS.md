@@ -14,7 +14,9 @@ Every competitive memory system uses an LLM somewhere in retrieval:
 
 They start from the same assumption: you need AI to decide what matters.
 
-**ERINYS disagrees.** Using only FTS5 full-text search, sqlite-vec embeddings, and algorithmic boosting — no LLM calls at any stage — ERINYS scores 100% on LongMemEval-S, 94.0% on LoCoMo, and 97.6% on ConvoMem.
+**ERINYS disagrees.** Using only FTS5 full-text search, sqlite-vec embeddings, and algorithmic boosting — no LLM calls at any stage — ERINYS scores 100% on LongMemEval-S, 94.0% on LoCoMo, and 97.6% on ConvoMem (April 2026 configuration).
+
+> **Reproduced on current dependencies (2026-07):** LongMemEval-S **99.4% R@5 / 100% R@10**, LoCoMo **92.7% R@5** (fair R@5 ≈ **95.7%** after excluding benchmark-label defects — see [Reproduction & honest numbers](#reproduction--honest-numbers)), and **LongMemEval-M 96.8% R@5** (the harder ~476-session split, evaluated here for the first time). The small deltas vs the April headline come from search-code evolution, not the retrieval core — details below.
 
 The field is over-engineering retrieval. IDF-weighted bigram overlap, temporal Gaussian decay, and reciprocal rank fusion are enough. They run in 10ms on a laptop. They cost nothing.
 
@@ -33,6 +35,33 @@ All results use the same configuration: `enhanced_v2_boost` mode, `top_k=10`, BA
 These are retrieval recall scores: "Is the correct session in the top-K results?" Not end-to-end QA accuracy. The distinction matters — a system can have 100% retrieval recall and 40% QA accuracy, or vice versa.
 
 These are retrieval-recall numbers, not end-to-end QA accuracy; for known weak spots and boundaries see [../docs/LIMITATIONS.md](../docs/LIMITATIONS.md).
+
+---
+
+## Reproduction & honest numbers
+
+The April headline (100% / 94.0% / 97.6%) was measured on an earlier configuration.
+Re-running the **same official commands** on current dependencies (bge-small-en-v1.5,
+top-k 10, `enhanced_v2_boost`, fresh embeddings) gives:
+
+| Benchmark | Split / N | R@5 (measured 2026-07) | R@10 | Notes |
+|:--|:--|:--|:--|:--|
+| **LongMemEval-S** | 500 | **99.4%** | **100.0%** | 3 misses, all rank 6–10; see per-miss analysis below |
+| **LongMemEval-M** | 500 | **96.8%** | 98.0% | **first evaluation** of the hard split (haystack ~476 sessions) |
+| **LoCoMo** | 1,982 | **92.7%** | 97.2% | **fair R@5 ≈ 95.7%** after excluding benchmark-label defects |
+| ConvoMem | 250 | *(not re-measured)* | — | April figure 97.6%; pending re-run |
+
+**Why the deltas are small and not a regression:**
+- **Not the retrieval core.** Reverting to the pristine v0.4.0 code gives the *same* LoCoMo 92.7% — the current release code is not the cause.
+- **Not the embedding model or top-k.** LoCoMo is 92.7% under both bge-small-en and multilingual-MiniLM, and under both top-k 5 and 10.
+- LongMemEval-S is **99.4% R@5 / 100% R@10**: the 3 R@5 misses are (a) a two-session date-arithmetic question, (b) a "last Tuesday" relative-date question, (c) a topic-reference question — all recovered at R@10. The April 100% R@5 depended in part on question-specific tuning; we prefer to report the reproducible 99.4% / 100%(R@10).
+
+**LoCoMo miss audit (144 R@5 misses classified):** 32 unfair labels + 29 unanswerable/adversarial = **61 (42%) are benchmark defects**, not retrieval failures (e.g. an answer discussed across many sessions but pinned to one gold; a labelled evidence turn that does not exist; speculative "what would X's political leaning be?"). Excluding these, **fair R@5 ≈ 95.7%**. The remaining 83 are 50 genuine retrieval misses + 33 hard multi-hop inference. Method: LLM-assisted classification against session summaries — high-confidence items should be spot-checked before filing upstream.
+
+**Data caveats (honesty):**
+- Haystack size per LongMemEval-S question is **~48 sessions** (measured), not "~20" as stated elsewhere on this page.
+- These are retrieval-recall, not E2E QA. See [../docs/LIMITATIONS.md](../docs/LIMITATIONS.md).
+- Pin `fastembed` for reproducibility; embedding pooling changed across fastembed versions.
 
 ---
 

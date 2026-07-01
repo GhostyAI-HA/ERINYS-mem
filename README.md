@@ -4,7 +4,7 @@
 
 # ERINYS — Verifiable local memory for AI agents
 
-**v0.4.1** · **10ms local retrieval. No API key. No token cost.**
+**v0.5.0** · **10ms local retrieval. No API key. No token cost.**
 
 Retrieval recall 100% on LongMemEval-S (`_s` split); end-to-end QA accuracy pending — see [docs/LIMITATIONS.md](docs/LIMITATIONS.md).
 

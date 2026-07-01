@@ -2,6 +2,44 @@
 
 ## [Unreleased]
 
+## [0.5.0] — 2026-07-02
+
+### Changed — benchmark reporting honesty
+
+- **BENCHMARKS.md now reports numbers reproduced on current dependencies**:
+  LongMemEval-S **99.4% R@5 / 100% R@10**, LongMemEval-M **96.8% R@5** (the harder
+  ~476-session split, evaluated for the first time), LoCoMo **92.7% R@5** with a
+  **fair R@5 ≈ 95.7%** after a miss audit found **42% of LoCoMo R@5 misses are
+  benchmark-label defects** (unfair single-gold labels / unanswerable adversarial
+  questions), not retrieval failures. Corrects the stated haystack size (~48, not
+  ~20) and recommends pinning `fastembed` (embedding pooling changed across
+  versions). The retrieval core is unchanged — pristine v0.4.0 reproduces the same
+  LoCoMo 92.7%.
+
+### Added — temporal date-proximity grounding (product-side)
+
+- **`rrf_hybrid_search(..., as_of=...)`** now applies a Gaussian date-proximity
+  boost: when the caller anchors the query in time (`as_of`) and the query has a
+  resolvable relative date ("last Tuesday", "10 days ago"), observations whose own
+  date (`metadata.date`, else `created_at`) is near the resolved target are
+  promoted. Previously this date-aware temporal ranking existed only in the
+  benchmark harness — the shipped MCP `erinys_search` now performs it by default
+  (`as_of=now()`). Conservative, non-tuned defaults (`weight=1.0`, `sigma=3.0`);
+  fully backward-compatible (no `as_of` → no change; non-temporal query → no
+  change). Surfaced as `temporal_date_boost` in results. Tests in
+  `tests/test_temporal_date_boost.py`.
+
+### Added — answerability / abstention signal (zero-LLM)
+
+- **`assess_answerability(query, results)`** + an `answerability` block on the
+  `erinys_search` response. Judges whether the top result *answers* the query
+  (keyword grounding of the query's content terms + score margin) vs merely being
+  topically related, so an agent can **abstain** instead of asserting a
+  plausible-but-wrong memory (e.g. "what is my hamster's name?" when only a cat
+  was ever mentioned → `answerable: false`). Motivated by LongMemEval-M abstention
+  questions (gold = "you did not mention this") and ConvoMem plausible-but-wrong
+  cases, which retrieval-recall cannot score. Tests in `tests/test_answerability.py`.
+
 ## [0.4.1] — 2026-07-01 — release-readiness hardening
 
 ### Fixed — SQLite extension portability (release blocker)

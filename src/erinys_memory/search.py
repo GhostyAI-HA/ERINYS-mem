@@ -579,6 +579,110 @@ def _sanitize_fts_or(query: str) -> str:
     return " OR ".join(terms)
 
 
+# Temporal date-proximity boost (product-side). Conservative, non-tuned defaults:
+# an observation dated exactly on the query's resolved target gets 1 + WEIGHT; the
+# boost decays as a Gaussian over day-distance with SIGMA. Only applied when the
+# caller supplies an `as_of` reference date AND the query has a resolvable relative
+# date ("last Tuesday", "10 days ago") — so non-temporal queries are untouched.
+TEMPORAL_DATE_WEIGHT = 1.0
+TEMPORAL_DATE_SIGMA = 3.0
+
+
+def _parse_flexible_date(value: str) -> datetime | None:
+    """Parse ISO or the 'YYYY/MM/DD (Day) HH:MM' shape used by dated corpora."""
+    text = value.strip()
+    if not text:
+        return None
+    try:
+        return datetime.fromisoformat(text.replace("Z", "+00:00"))
+    except ValueError:
+        pass
+    m = re.match(r"(\d{4})/(\d{1,2})/(\d{1,2})", text)
+    if m:
+        try:
+            return datetime(int(m.group(1)), int(m.group(2)), int(m.group(3)), tzinfo=timezone.utc)
+        except ValueError:
+            return None
+    return None
+
+
+def _resolve_as_of(as_of: "str | datetime | None") -> datetime:
+    if isinstance(as_of, datetime):
+        return as_of if as_of.tzinfo else as_of.replace(tzinfo=timezone.utc)
+    if isinstance(as_of, str):
+        parsed = _parse_flexible_date(as_of)
+        if parsed is not None:
+            return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+    return datetime.now(timezone.utc)
+
+
+def _obs_reference_date(obs: dict[str, Any]) -> datetime | None:
+    """The date an observation *refers to*: metadata.date if present, else created_at."""
+    meta = obs.get("metadata")
+    if isinstance(meta, str) and meta:
+        try:
+            meta = json.loads(meta)
+        except (ValueError, TypeError):
+            meta = None
+    if isinstance(meta, dict) and meta.get("date"):
+        parsed = _parse_flexible_date(str(meta["date"]))
+        if parsed is not None:
+            return parsed
+    created = obs.get("created_at")
+    if isinstance(created, datetime):
+        return created
+    if isinstance(created, str):
+        return _parse_flexible_date(created)
+    return None
+
+
+# Answerability floor: the top result must ground at least this fraction of the
+# query's content keywords, else the query is judged unanswerable (abstain).
+ANSWERABILITY_MIN_GROUNDING = 0.5
+
+
+def assess_answerability(query: str, results: list[dict[str, Any]]) -> dict[str, Any]:
+    """Zero-LLM answerability signal: is the top result likely an *answer*, or just
+    something topically related?
+
+    Retrieval can always return *a* nearest neighbour; that neighbour being close
+    does not mean it answers the question ("what is my hamster's name?" retrieves a
+    memory about the cat). We gauge answerability from two retrieval-internal cues:
+      - keyword grounding: fraction of the query's content keywords present in the
+        top result's text (the primary, entity-sensitive signal);
+      - score margin: how far the top result stands above the second.
+    `answerable=False` is a signal for the agent to abstain rather than assert a
+    plausible-but-wrong answer.
+    """
+    if not results:
+        return {"answerable": False, "score": 0.0, "grounding": 0.0, "margin": 0.0,
+                "reason": "no results retrieved"}
+    top = results[0]
+    content = str(top.get("content", "")).lower()
+    keywords = _extract_content_keywords(query)
+    if keywords:
+        grounding = sum(1 for k in keywords if k in content) / len(keywords)
+    else:
+        grounding = 0.0
+    top_score = float(top.get("effective_score", 0.0))
+    if len(results) >= 2 and top_score > 0:
+        margin = max(0.0, min((top_score - float(results[1].get("effective_score", 0.0))) / top_score, 1.0))
+    else:
+        margin = 1.0
+    score = round(0.7 * grounding + 0.3 * margin, 3)
+    answerable = grounding >= ANSWERABILITY_MIN_GROUNDING
+    return {
+        "answerable": answerable,
+        "score": score,
+        "grounding": round(grounding, 3),
+        "margin": round(margin, 3),
+        "reason": (
+            f"top result grounds {grounding:.0%} of query keywords (margin {margin:.2f}); "
+            + ("answerable" if answerable else "likely no answer in memory — consider abstaining")
+        ),
+    }
+
+
 def _build_why_included(
     obs: dict[str, Any],
     fts_rank_by_id: dict[int, int],
@@ -657,6 +761,7 @@ def rrf_hybrid_search(
     quoted_phrase_boost: float = 0.3,
     temporal_content_boost: float = 0.3,
     focused_embedding: list[float] | None = None,
+    as_of: "str | datetime | None" = None,
 ) -> list[dict[str, Any]]:
     """
     Enhanced RRF hybrid search: FTS5 OR-mode + sqlite-vec + multi-signal boosting.
@@ -900,6 +1005,27 @@ def rrf_hybrid_search(
                         obs["graph_boosted"] = True
         except Exception:
             pass  # graph layer is optional; degrade gracefully
+
+    # Phase 3c: Temporal date-proximity boost (product-side).
+    # Opt-in via `as_of`: when the caller anchors the query in time (real usage
+    # passes now(); dated corpora pass the query's reference date) and the query
+    # carries a resolvable relative date, promote observations whose own date is
+    # near the resolved target. No `as_of` → no change (backward compatible).
+    if as_of is not None and results and _is_temporal_query(query):
+        target = parse_relative_date(query, _resolve_as_of(as_of))
+        if target is not None:
+            target_date = target.date()
+            for obs in results:
+                ref = _obs_reference_date(obs)
+                if ref is None:
+                    continue
+                delta_days = abs((ref.date() - target_date).days)
+                tboost = 1.0 + TEMPORAL_DATE_WEIGHT * math.exp(
+                    -(delta_days ** 2) / (2 * TEMPORAL_DATE_SIGMA ** 2)
+                )
+                obs["effective_score"] = float(obs["effective_score"]) * tboost
+                if tboost > 1.001:
+                    obs["temporal_date_boost"] = round(tboost, 3)
 
     results.sort(key=lambda item: float(item["effective_score"]), reverse=True)
     top = results[:limit]

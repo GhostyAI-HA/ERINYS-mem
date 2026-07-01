@@ -4,7 +4,7 @@
 
 # ERINYS — AIエージェントのための検証可能なローカル記憶
 
-**v0.4.1** · **ローカル検索10ms。APIキー不要。トークン課金ゼロ。**
+**v0.5.0** · **ローカル検索10ms。APIキー不要。トークン課金ゼロ。**
 
 LongMemEval-S（`_s` split）の検索リコールは100%。エンドツーエンドのQA精度は評価中 — [docs/LIMITATIONS.md](docs/LIMITATIONS.md) 参照。
 

@@ -32,7 +32,7 @@ from .decay import current_strength
 from .distill import distill_observation
 from .embedding import EmbeddingEngine, serialize_f32
 from .graph import GraphEngine, VALID_RELATIONS, create_edge, traverse
-from .search import rrf_hybrid_search, focus_query_for_embedding
+from .search import rrf_hybrid_search, focus_query_for_embedding, assess_answerability
 from .session import SessionManager, end_session, get_recent_sessions, save_session_summary, start_session
 from .temporal import conflict_check, query_as_of, supersede_observation
 
@@ -402,6 +402,7 @@ def _search_results(
         fts_weight=_CONFIG.fts_weight,
         vec_weight=_CONFIG.vec_weight,
         focused_embedding=focused_emb,
+        as_of=_now(),  # anchor relative-date queries ("last Tuesday") to now
     )
     filtered: list[dict[str, Any]] = []
     for row in results:
@@ -973,7 +974,7 @@ def erinys_search(
     def action() -> dict[str, Any]:
         results = _search_results(query, project, limit, include_anti_patterns, include_distilled, metadata_filter)
         _audit("search", "observation", None, {"query": query, "count": len(results), "project": project})
-        return {"query": query, "results": results}
+        return {"query": query, "results": results, "answerability": assess_answerability(query, results)}
 
     return _envelope(action)
 
