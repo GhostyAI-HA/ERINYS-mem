@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import math
+import os
 import re
 import shutil
 from ._sqlite import sqlite3
@@ -32,6 +33,7 @@ from .decay import current_strength
 from .distill import distill_observation
 from .embedding import EmbeddingEngine, serialize_f32
 from .graph import GraphEngine, VALID_RELATIONS, create_edge, traverse
+from .policy import admit_memory, policy_is_active, retrieve_policy
 from .search import rrf_hybrid_search, focus_query_for_embedding, assess_answerability
 from .session import SessionManager, end_session, get_recent_sessions, save_session_summary, start_session
 from .temporal import conflict_check, query_as_of, supersede_observation
@@ -89,6 +91,8 @@ def _map_integrity_error(exc: sqlite3.IntegrityError) -> dict[str, Any]:
 def _envelope(action: Callable[[], Any]) -> dict[str, Any]:
     try:
         return _ok(action())
+    except PolicyDeniedError as exc:
+        return _error("POLICY_DENIED", str(exc))
     except LookupError as exc:
         return _error("NOT_FOUND", str(exc))
     except ContentTooLongError as exc:
@@ -160,6 +164,37 @@ def _normalize_prompt(row: sqlite3.Row) -> dict[str, Any]:
 
 def _now() -> datetime:
     return datetime.now(timezone.utc)
+
+
+class PolicyDeniedError(PermissionError):
+    """P0-7: a write violated the configured memory access policy."""
+
+
+def _parse_env_list(name: str) -> list[str] | None:
+    """Read a comma-separated env var into a list, or ``None`` if unset.
+
+    Unset (no key) → ``None`` (no constraint). Set-but-empty (``""``) →
+    ``[]`` (a real deny-everything constraint), so an operator can lock a
+    surface down explicitly rather than accidentally disabling the gate.
+    """
+    if name not in os.environ:
+        return None
+    raw = os.environ[name]
+    return [item.strip() for item in raw.split(",") if item.strip()]
+
+
+def _resolve_allowed_projects(explicit: list[str] | None) -> list[str] | None:
+    """Explicit arg wins; else env ERINYS_ALLOWED_PROJECTS; else None."""
+    if explicit is not None:
+        return explicit
+    return _parse_env_list("ERINYS_ALLOWED_PROJECTS")
+
+
+def _resolve_allowed_scopes(explicit: list[str] | None) -> list[str] | None:
+    """Explicit arg wins; else env ERINYS_ALLOWED_SCOPES; else None."""
+    if explicit is not None:
+        return explicit
+    return _parse_env_list("ERINYS_ALLOWED_SCOPES")
 
 
 def _redact_text(text: str) -> str:
@@ -669,16 +704,34 @@ def erinys_save(
     session_id: str | None = None,
     metadata: dict | None = None,
     principal: str | None = None,
+    allowed_projects: list[str] | None = None,
+    allowed_scopes: list[str] | None = None,
 ) -> dict:
     """Save a structured observation to ERINYS memory.
 
     principal: この記憶を書いた主体(例 claude-opus-4-8 / codex)。省略時は
     env ERINYS_PRINCIPAL → "unknown"。VMG provenance に記録される。
+
+    P0-7 (opt-in): allowed_projects / allowed_scopes は書き込み許可の access
+    gate。明示引数 > env(ERINYS_ALLOWED_PROJECTS / ERINYS_ALLOWED_SCOPES)>
+    無効(None)。どれも設定されなければ従来どおり無条件に保存する。許可外の
+    project/scope への書き込みは POLICY_DENIED で拒否する。
     """
 
     def action() -> dict[str, Any]:
         payload = _observation_payload(title, content, type, project, scope, topic_key,
                                        session_id, metadata, principal=principal)
+        eff_projects = _resolve_allowed_projects(allowed_projects)
+        eff_scopes = _resolve_allowed_scopes(allowed_scopes)
+        if policy_is_active(eff_projects, eff_scopes):
+            ok, reason = admit_memory(
+                payload,
+                principal=principal,
+                allowed_scopes=eff_scopes,
+                allowed_projects=eff_projects,
+            )
+            if not ok:
+                raise PolicyDeniedError(f"write blocked by memory policy: {reason}")
         record, status = _persist_observation(payload)
         _audit("save", "observation", int(record["id"]), {"status": status, "topic_key": topic_key})
         conflicts_with = _flag_consolidation_conflicts(record, status, type)
@@ -968,11 +1021,29 @@ def erinys_search(
     include_anti_patterns: bool = True,
     include_distilled: bool = True,
     metadata_filter: dict | None = None,
+    allowed_projects: list[str] | None = None,
+    allowed_scopes: list[str] | None = None,
+    principal: str | None = None,
 ) -> dict:
-    """RRF hybrid search (FTS5 keyword + vector similarity)."""
+    """RRF hybrid search (FTS5 keyword + vector similarity).
+
+    P0-7 (opt-in): allowed_projects / allowed_scopes は取得許可の access gate。
+    明示引数 > env(ERINYS_ALLOWED_PROJECTS / ERINYS_ALLOWED_SCOPES)> 無効
+    (None)。設定時は、許可外の project/scope の行を結果から除外する(global
+    scope は常に可視)。どれも設定されなければ従来どおり全件返す。
+    """
 
     def action() -> dict[str, Any]:
         results = _search_results(query, project, limit, include_anti_patterns, include_distilled, metadata_filter)
+        eff_projects = _resolve_allowed_projects(allowed_projects)
+        eff_scopes = _resolve_allowed_scopes(allowed_scopes)
+        if policy_is_active(eff_projects, eff_scopes):
+            results = retrieve_policy(
+                results,
+                principal=principal,
+                allowed_projects=eff_projects,
+                allowed_scopes=eff_scopes,
+            )
         _audit("search", "observation", None, {"query": query, "count": len(results), "project": project})
         return {"query": query, "results": results, "answerability": assess_answerability(query, results)}
 

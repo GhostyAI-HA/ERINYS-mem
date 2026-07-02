@@ -2,6 +2,32 @@
 
 ## [Unreleased]
 
+## [0.5.1] — 2026-07-02
+
+### Added — memory access policy / security gate (P0-7, opt-in, zero-LLM)
+
+- New `erinys_memory.policy` module: `admit_memory()` (gate a write) and
+  `retrieve_policy()` (filter results a principal may not see) by project/scope.
+  Wired **opt-in** into `erinys_search` / `erinys_save` (via `allowed_projects` /
+  `allowed_scopes` args or `ERINYS_ALLOWED_PROJECTS` / `ERINYS_ALLOWED_SCOPES`
+  env). No policy configured → behavior unchanged. Blocked writes return
+  `POLICY_DENIED` and persist nothing. Tests in `tests/test_policy.py` (23).
+  Honest scope: app-level authorization, **not** encryption; `principal` is
+  caller-asserted; currently gates `erinys_search`/`erinys_save` (not
+  `batch_save`/`get`/`recall`) — documented for follow-up.
+
+### Added — evaluation harnesses (P0-4 + answerability)
+
+- `benchmarks/qa_eval.py`: end-to-end QA eval (accuracy / abstention /
+  hallucination) with a **pluggable** `answer_fn` + `judge_fn` (Ollama or offline
+  string-match), so retrieval-recall can be complemented by real answer quality.
+  Unit-testable with a fake LLM. Tests in `tests/test_qa_eval.py`.
+- `benchmarks/answerability_eval.py`: measures `assess_answerability`'s
+  abstain-decision precision/recall/F1 with a grounding-threshold sweep. Unit-
+  testable with an in-code labeled fixture. Tests in `tests/test_answerability_eval.py`.
+- Both harnesses are mock/fixture-tested here; **real runs against
+  ConvoMem / LongMemEval-M (with an LLM) are documented but not yet executed**.
+
 ## [0.5.0] — 2026-07-02
 
 ### Changed — benchmark reporting honesty
