@@ -72,6 +72,27 @@ erinys search "認証 Cookie セキュリティ" --project demo
 
 検索はローカルのSQLiteファイル1つに対して約7〜10ms、LLM呼び出しゼロで走る。
 
+## v0.6.0の追加機能
+
+**時刻を保つ履歴Backfill。** `erinys backfill`は、確認済みのSlack、メール、
+チャット、Web、アーカイブ記録を元の時刻付きで取り込む。記録時刻、有効期間、
+過去の利用イベントを分けて保持するため、減衰と強化は取込日ではなく実際の履歴を
+起点に計算される。plan/apply digest、event ledgerによる冪等性、書込前embedding、
+自動backup、安全条件付きrollbackを備え、SQLiteへの直接投入は不要。
+applyは既定OFF。詳細は[Timestamp-aware backfill](docs/BACKFILL.md)。
+
+**Admission / Activation Sentry。** Provenanceが「どこから来たか」を示し、
+Sentryは「何に使ってよいか」を判定する。保存時にサーバーが信頼区分を付け、
+読取側は`intended_use`を宣言する。記憶から文章を呼び出しても、それだけで命令権限
+にはならない。未信頼記録に含まれる危険な指示は呼び出し元へ渡す前に遮断する。
+詳細は[Memory safety](docs/MEMORY_SAFETY.md)。
+
+**Current Valid Claim Evidence Path v0＋GraphRAG read-only shadow。**
+有効期間、記録時刻、scope、status、provenance、edge検証状態を分離した厳密なclaim
+契約を追加した。opt-inのshadowは既存RRF候補を検証済みedgeだけで評価するが、
+本番レスポンスは変更しない。既定OFFで、まだ回答経路ではなく測定経路。
+詳細は[rollout contract](CURRENT_VALID_CLAIM_ROLLOUT.md)。
+
 ## ベンチマーク
 
 以下は**検索リコール**の数値（正しいセッションがTop-Kに入っているか）であり、エンドツーエンドのQA精度ではない — QA/回答可能性の評価ハーネスはv0.5.1で同梱、実測はこれから（[LIMITATIONS.md](docs/LIMITATIONS.md)）。全結果は同一モード（`enhanced_v2_boost`）、検索パイプラインの**LLM呼び出しゼロ**、現行依存関係での再現値（2026-07）。
@@ -200,12 +221,12 @@ erinys distill 123 --level meta --json
 - 使い方エラーもJSONで返る（`error.code: "USAGE"`、exit code 2）。
 - モジュール形式: `python -m erinys_memory.cli <command>`。
 
-## MCPツール一覧（28ツール）
+## MCPツール一覧（29ツール）
 
 | 階層 | 数 | 内容 | LLM |
 |:--|:--|:--|:--|
 | **Basic** | 17 | save / search / recall / セッション管理 — 安定コア | ❌ なし |
-| **Governance** | 7 | 来歴、supersede、timeline、矛盾検出、検証可能な忘却 | ❌ なし |
+| **Governance** | 8 | 来歴、supersede、timeline、backfill、矛盾検出、検証可能な忘却 | ❌ なし |
 | **Experimental** | 4 | distill、dream、collide、eval — 研究的機能 | ⚠️ distill / dream / collide はLLMを呼ぶ |
 
 全ツールが同じ `{ok, data, error}` エンベロープを返す。ツール別の完全なリファレンス → [docs/TOOLS.md](docs/TOOLS.md)
@@ -219,17 +240,24 @@ erinys distill 123 --level meta --json
 | `ERINYS_AUTO_DISTILL` | `1` | 保存時の自動蒸留（`0`で無効化） |
 | `ERINYS_DISTILL_MODEL` | `gemma4:e4b` | 蒸留に使うローカルOllamaモデル |
 | `ERINYS_DISTILL_ENDPOINT` | `http://localhost:11434/api/generate` | Ollama生成エンドポイント |
+| `ERINYS_BACKFILL_ENABLED` | `0` | 確認済みbackfill planのapplyを許可 |
+| `ERINYS_BACKFILL_MAX_ITEMS` | `100` | ローカルCLIの1リクエスト上限。MCPは100固定 |
+| `ERINYS_BACKFILL_CHUNK_SIZE` | `100` | 1 apply transactionの最大observation数 |
+| `ERINYS_FIRST_PARTY_RECORD_NAMESPACES` | 空 | first-party evidenceとして認めるnamespaceのカンマ区切り |
+| `ERINYS_CLAIM_SHADOW_MODE` | `off` | `audit`で非介入のclaim-shadow receiptを記録 |
 
 ## アーキテクチャ
 
 ```
 ┌─────────────────────────────┐
-│       FastMCP Server        │  28ツール、統一 {ok, data, error} エンベロープ
+│       FastMCP Server        │  29ツール、統一 {ok, data, error} エンベロープ
 ├─────────────────────────────┤
 │ search.py     │ graph.py    │  RRFハイブリッド検索 │ 型付きエッジ
 │ decay.py      │ session.py  │  エビングハウス減衰  │ ライフサイクル
 │ temporal.py   │ collider.py │  バージョニング      │ Dream Cycle
 │ distill.py    │ policy.py   │  3段階蒸留          │ アクセスポリシー
+│ backfill.py   │ sentry.py   │  event ledger      │ 利用制御
+│ claim_shadow  │ policy.py   │  read-only graph   │ access policy
 │ provenance.py │ db.py       │  来歴の刻印         │ SQLite + vec
 ├─────────────────────────────┤
 │ embedding.py                │  fastembed (multilingual-MiniLM, 384d)

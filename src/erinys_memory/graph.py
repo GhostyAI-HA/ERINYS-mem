@@ -23,6 +23,13 @@ VALID_RELATIONS = {
     "causal",     # WHY intent: cause-effect relationships
     "entity",     # WHO intent: person/entity relationships
     "temporal",   # WHEN intent: temporal ordering
+    "supports",
+    "narrows",
+    "derived_from",
+    "applicable_to",
+    "used_in",
+    "verified_by",
+    "resulted_in",
 }
 
 # Map query intents to preferred edge types for graph-boosted search.

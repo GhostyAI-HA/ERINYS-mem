@@ -19,6 +19,7 @@ from .db import (
 from .embedding import serialize_f32
 from .graph import create_edge
 from .provenance import build_provenance
+from .sentry import derived_memory_safety
 from .search import rrf_hybrid_search
 
 NEGATION_TOKENS = {
@@ -195,6 +196,7 @@ def supersede_observation(
             "superseded_from": old_id,
             # VMG: 新版は古い出自を継承せず、old_id を親とする新 provenance を持つ。
             "provenance": build_provenance(old["source"], None, "supersede", [old_id]),
+            "memory_safety": derived_memory_safety(old),
         },
         "session_id": resolve_session_id(db, old["session_id"]),
     }

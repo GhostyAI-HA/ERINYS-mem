@@ -1,4 +1,4 @@
-"""Tests for schema migration v1→v2 and collision metadata persistence."""
+"""Tests for schema migration v1→v3 and collision metadata persistence."""
 
 from __future__ import annotations
 
@@ -84,14 +84,14 @@ def _create_v1_db() -> sqlite3.Connection:
     return con
 
 
-class TestMigrationV1ToV2:
-    """Tests for _migrate() v1→v2."""
+class TestMigrationV1ToV3:
+    """Tests for _migrate() v1→v3."""
 
     def test_migration_bumps_version(self):
         db = _create_v1_db()
         _migrate(db)
         version = db.execute("SELECT MAX(version) FROM schema_version").fetchone()[0]
-        assert version == 2
+        assert version == 3
 
     def test_migration_preserves_existing_edges(self):
         db = _create_v1_db()
@@ -104,13 +104,18 @@ class TestMigrationV1ToV2:
     def test_migration_allows_new_relation_types(self):
         db = _create_v1_db()
         _migrate(db)
-        for relation in ("causal", "entity", "temporal"):
+        relations = (
+            "causal", "entity", "temporal", "supports", "narrows",
+            "derived_from", "applicable_to", "used_in", "verified_by",
+            "resulted_in",
+        )
+        for relation in relations:
             db.execute(
                 "INSERT INTO edges(source_id, target_id, relation) VALUES (?, ?, ?)",
                 (1, 2, relation),
             )
         count = db.execute("SELECT COUNT(*) FROM edges").fetchone()[0]
-        assert count == 4  # original + 3 new
+        assert count == 1 + len(relations)
 
     def test_migration_adds_collisions_metadata_column(self):
         db = _create_v1_db()
@@ -119,12 +124,28 @@ class TestMigrationV1ToV2:
         assert "metadata" in cols
 
     def test_migration_idempotent(self):
-        """Running _migrate twice should not error (already at v2)."""
+        """Running _migrate twice should not error (already at v3)."""
         db = _create_v1_db()
         _migrate(db)
         _migrate(db)  # Should be a no-op
         version = db.execute("SELECT MAX(version) FROM schema_version").fetchone()[0]
-        assert version == 2
+        assert version == 3
+
+    def test_migration_adds_backfill_ledger_tables(self):
+        db = _create_v1_db()
+        _migrate(db)
+        names = {
+            row[0] for row in db.execute(
+                "SELECT name FROM sqlite_master WHERE type = 'table'"
+            ).fetchall()
+        }
+
+        assert {
+            "backfill_runs",
+            "observation_event_baselines",
+            "observation_events",
+            "backfill_run_observations",
+        } <= names
 
 
 class TestCollisionMetadataRoundTrip:

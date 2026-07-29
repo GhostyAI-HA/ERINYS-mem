@@ -34,6 +34,8 @@ INSERT INTO observations(
     embedding_model,
     topic_key,
     metadata,
+    created_at,
+    updated_at,
     session_id
 ) VALUES (
     :title,
@@ -55,6 +57,8 @@ INSERT INTO observations(
     :embedding_model,
     :topic_key,
     :metadata,
+    :created_at,
+    :updated_at,
     :session_id
 )
 """
@@ -160,27 +164,43 @@ def _metadata_json(value: object) -> object:
 
 
 def _normalize_observation_payload(obs_payload: Mapping[str, object]) -> dict[str, object]:
+    now = datetime.now(timezone.utc)
     return {
-        "title": obs_payload["title"],
-        "content": obs_payload["content"],
-        "type": obs_payload.get("type", "manual"),
-        "project": obs_payload.get("project"),
-        "scope": obs_payload.get("scope", "project"),
-        "is_anti_pattern": obs_payload.get("is_anti_pattern", 0),
-        "is_pattern": obs_payload.get("is_pattern", 0),
-        "distillation_level": obs_payload.get("distillation_level"),
-        "distilled_from": obs_payload.get("distilled_from"),
-        "valid_from": obs_payload.get("valid_from", datetime.now(timezone.utc)),
-        "valid_until": obs_payload.get("valid_until"),
-        "superseded_by": obs_payload.get("superseded_by"),
-        "base_strength": obs_payload.get("base_strength", 1.0),
-        "access_count": obs_payload.get("access_count", 0),
-        "last_accessed": obs_payload.get("last_accessed"),
-        "source": obs_payload.get("source", "user"),
-        "embedding_model": obs_payload.get("embedding_model", embedding_engine.model_name),
-        "topic_key": obs_payload.get("topic_key"),
+        **_observation_identity(obs_payload),
+        **_observation_temporal(obs_payload, now),
         "metadata": _metadata_json(obs_payload.get("metadata")),
         "session_id": obs_payload.get("session_id"),
+    }
+
+
+def _observation_identity(payload: Mapping[str, object]) -> dict[str, object]:
+    return {
+        "title": payload["title"], "content": payload["content"],
+        "type": payload.get("type", "manual"), "project": payload.get("project"),
+        "scope": payload.get("scope", "project"),
+        "is_anti_pattern": payload.get("is_anti_pattern", 0),
+        "is_pattern": payload.get("is_pattern", 0),
+        "distillation_level": payload.get("distillation_level"),
+        "distilled_from": payload.get("distilled_from"),
+        "source": payload.get("source", "user"),
+        "embedding_model": payload.get("embedding_model", embedding_engine.model_name),
+        "topic_key": payload.get("topic_key"),
+    }
+
+
+def _observation_temporal(
+    payload: Mapping[str, object],
+    now: datetime,
+) -> dict[str, object]:
+    return {
+        "valid_from": payload.get("valid_from", now),
+        "valid_until": payload.get("valid_until"),
+        "superseded_by": payload.get("superseded_by"),
+        "base_strength": payload.get("base_strength", 1.0),
+        "access_count": payload.get("access_count", 0),
+        "last_accessed": payload.get("last_accessed"),
+        "created_at": payload.get("created_at", now),
+        "updated_at": payload.get("updated_at", now),
     }
 
 
@@ -232,47 +252,124 @@ def init_db(config: ErinysConfig | None = None) -> sqlite3.Connection:
 
 def _migrate(db: sqlite3.Connection) -> None:
     """Run incremental schema migrations based on schema_version."""
-    row = db.execute("SELECT MAX(version) AS v FROM schema_version").fetchone()
-    current_version = int(row["v"]) if row and row["v"] is not None else 1
-
+    current_version = _schema_version(db)
     if current_version < 2:
-        # v2: Add causal/entity/temporal to edges CHECK constraint
-        # SQLite does not support ALTER TABLE ... CHECK, so recreate the table
-        # Also add metadata column to collisions for collision_score persistence
-        db.executescript("""
-            CREATE TABLE edges_v2 (
-              id          INTEGER PRIMARY KEY AUTOINCREMENT,
-              source_id   INTEGER NOT NULL REFERENCES observations(id) ON DELETE CASCADE,
-              target_id   INTEGER NOT NULL REFERENCES observations(id) ON DELETE CASCADE,
-              relation    TEXT    NOT NULL
-                          CHECK(relation IN (
-                            'relates_to','depends_on','implements',
-                            'references','similar_to','contains',
-                            'contradicts','supersedes','distilled_from',
-                            'causal','entity','temporal'
-                          )),
-              weight      REAL    NOT NULL DEFAULT 1.0
-                          CHECK(weight >= 0.0 AND weight <= 1.0),
-              metadata    TEXT CHECK(metadata IS NULL OR json_valid(metadata)),
-              created_at  DATETIME NOT NULL DEFAULT (datetime('now')),
-              UNIQUE(source_id, target_id, relation)
-            );
-            INSERT INTO edges_v2 SELECT * FROM edges;
-            DROP TABLE edges;
-            ALTER TABLE edges_v2 RENAME TO edges;
-            CREATE INDEX idx_edges_source   ON edges(source_id);
-            CREATE INDEX idx_edges_target   ON edges(target_id);
-            CREATE INDEX idx_edges_relation ON edges(relation);
-            INSERT INTO schema_version(version) VALUES (2);
-        """)
-        # Add metadata column to collisions if not present
-        cols = [row[1] for row in db.execute("PRAGMA table_info(collisions)").fetchall()]
-        if "metadata" not in cols:
-            db.execute(
-                "ALTER TABLE collisions ADD COLUMN metadata TEXT "
-                "CHECK(metadata IS NULL OR json_valid(metadata))"
-            )
-            db.commit()
+        _migrate_v2(db)
+    if current_version < 3:
+        _migrate_v3(db)
+
+
+def _schema_version(db: sqlite3.Connection) -> int:
+    row = db.execute("SELECT MAX(version) AS v FROM schema_version").fetchone()
+    return int(row["v"]) if row and row["v"] is not None else 1
+
+
+def _collision_columns(db: sqlite3.Connection) -> set[str]:
+    rows = db.execute("PRAGMA table_info(collisions)").fetchall()
+    return {str(row[1]) for row in rows}
+
+
+def _migrate_v2(db: sqlite3.Connection) -> None:
+    if "metadata" not in _collision_columns(db):
+        db.execute(
+            "ALTER TABLE collisions ADD COLUMN metadata TEXT "
+            "CHECK(metadata IS NULL OR json_valid(metadata))"
+        )
+    db.execute("INSERT OR IGNORE INTO schema_version(version) VALUES (2)")
+    db.commit()
+
+
+def _migrate_v3(db: sqlite3.Connection) -> None:
+    db.executescript(_V3_MIGRATION_SQL)
+
+
+_V3_MIGRATION_SQL = """
+BEGIN IMMEDIATE;
+DROP TABLE IF EXISTS edges_v3;
+CREATE TABLE edges_v3 (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  source_id INTEGER NOT NULL REFERENCES observations(id) ON DELETE CASCADE,
+  target_id INTEGER NOT NULL REFERENCES observations(id) ON DELETE CASCADE,
+  relation TEXT NOT NULL CHECK(relation IN (
+    'relates_to','depends_on','implements','references','similar_to','contains',
+    'contradicts','supersedes','distilled_from','causal','entity','temporal',
+    'supports','narrows','derived_from','applicable_to','used_in','verified_by',
+    'resulted_in'
+  )),
+  weight REAL NOT NULL DEFAULT 1.0 CHECK(weight >= 0.0 AND weight <= 1.0),
+  metadata TEXT CHECK(metadata IS NULL OR json_valid(metadata)),
+  created_at DATETIME NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(source_id, target_id, relation)
+);
+INSERT INTO edges_v3 SELECT * FROM edges;
+DROP TABLE edges;
+ALTER TABLE edges_v3 RENAME TO edges;
+CREATE INDEX idx_edges_source ON edges(source_id);
+CREATE INDEX idx_edges_target ON edges(target_id);
+CREATE INDEX idx_edges_relation ON edges(relation);
+CREATE TABLE IF NOT EXISTS backfill_runs (
+  run_id TEXT PRIMARY KEY,
+  run_key TEXT NOT NULL,
+  request_digest TEXT NOT NULL,
+  plan_digest TEXT NOT NULL,
+  project TEXT NOT NULL,
+  source_kind TEXT NOT NULL,
+  source_namespace TEXT NOT NULL,
+  status TEXT NOT NULL CHECK(status IN (
+    'PLANNED','APPLYING','APPLIED','PARTIAL','FAILED','ROLLED_BACK'
+  )),
+  principal TEXT NOT NULL,
+  counts TEXT CHECK(counts IS NULL OR json_valid(counts)),
+  created_at DATETIME NOT NULL DEFAULT (datetime('now')),
+  completed_at DATETIME,
+  UNIQUE(project, run_key)
+);
+CREATE TABLE IF NOT EXISTS observation_event_baselines (
+  observation_id INTEGER PRIMARY KEY
+    REFERENCES observations(id) ON DELETE CASCADE,
+  access_count INTEGER NOT NULL,
+  last_accessed DATETIME,
+  enrolled_at DATETIME NOT NULL DEFAULT (datetime('now'))
+);
+CREATE TABLE IF NOT EXISTS observation_events (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  observation_id INTEGER NOT NULL
+    REFERENCES observations(id) ON DELETE CASCADE,
+  run_id TEXT NOT NULL REFERENCES backfill_runs(run_id) ON DELETE CASCADE,
+  event_type TEXT NOT NULL CHECK(event_type IN (
+    'RECORDED','USED','VERIFIED','OUTCOME','SUPERSEDED'
+  )),
+  event_key TEXT NOT NULL,
+  occurred_at DATETIME NOT NULL,
+  source_locator TEXT,
+  source_hash TEXT NOT NULL,
+  metadata TEXT CHECK(metadata IS NULL OR json_valid(metadata)),
+  imported_at DATETIME NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(observation_id, event_type, event_key)
+);
+CREATE TABLE IF NOT EXISTS backfill_run_observations (
+  run_id TEXT NOT NULL REFERENCES backfill_runs(run_id) ON DELETE CASCADE,
+  observation_id INTEGER NOT NULL REFERENCES observations(id) ON DELETE CASCADE,
+  disposition TEXT NOT NULL CHECK(disposition IN ('CREATED','MATCHED')),
+  before_projection TEXT CHECK(
+    before_projection IS NULL OR json_valid(before_projection)
+  ),
+  after_projection TEXT CHECK(
+    after_projection IS NULL OR json_valid(after_projection)
+  ),
+  PRIMARY KEY(run_id, observation_id)
+);
+CREATE INDEX IF NOT EXISTS idx_observation_events_observation
+  ON observation_events(observation_id);
+CREATE INDEX IF NOT EXISTS idx_observation_events_run
+  ON observation_events(run_id);
+CREATE INDEX IF NOT EXISTS idx_observation_events_type_time
+  ON observation_events(event_type, occurred_at);
+CREATE INDEX IF NOT EXISTS idx_backfill_run_observations_observation
+  ON backfill_run_observations(observation_id);
+INSERT OR IGNORE INTO schema_version(version) VALUES (3);
+COMMIT;
+"""
 
 
 def validate_db_metadata(db: sqlite3.Connection, config: ErinysConfig) -> None:
@@ -318,23 +415,32 @@ def insert_observation_with_embedding(
     obs_payload: Mapping[str, object],
     embedding_blob: bytes,
 ) -> int:
-    """
-    observations と vec_observations は rowid を明示一致させる。
-    drift 防止のため、単一トランザクションで両方を書き込む。
-    """
+    """observationとvectorを単一transactionで保存する。"""
     db.execute("BEGIN IMMEDIATE")
     try:
-        cursor = db.execute(OBS_INSERT_SQL, _normalize_observation_payload(obs_payload))
-        obs_id = cursor.lastrowid
-        db.execute(
-            "INSERT INTO vec_observations(rowid, embedding) VALUES (?, ?)",
-            [obs_id, embedding_blob],
-        )
+        obs_id = insert_observation_vector_rows(db, obs_payload, embedding_blob)
         db.commit()
         return obs_id
     except Exception:
         db.rollback()
         raise
+
+
+def insert_observation_vector_rows(
+    db: sqlite3.Connection,
+    obs_payload: Mapping[str, object],
+    embedding_blob: bytes,
+) -> int:
+    """Caller-owned transactionへobservationとvectorを追加する。"""
+    cursor = db.execute(OBS_INSERT_SQL, _normalize_observation_payload(obs_payload))
+    if cursor.lastrowid is None:
+        raise RuntimeError("observation insert did not return an id")
+    obs_id = int(cursor.lastrowid)
+    db.execute(
+        "INSERT INTO vec_observations(rowid, embedding) VALUES (?, ?)",
+        [obs_id, embedding_blob],
+    )
+    return obs_id
 
 
 def delete_observation_with_embedding(db: sqlite3.Connection, obs_id: int) -> None:

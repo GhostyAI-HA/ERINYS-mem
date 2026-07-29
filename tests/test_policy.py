@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-import pytest
+from collections.abc import Callable
 
-import erinys_memory.server as server
+from erinys_memory import server
 from erinys_memory.policy import (
     admit_memory,
     extract_principal,
@@ -14,6 +14,11 @@ from erinys_memory.policy import (
     policy_is_active,
     retrieve_policy,
 )
+
+ShadowCapture = Callable[
+    [str, str | None, list[dict[str, object]], str],
+    None,
+]
 
 
 # --------------------------------------------------------------------------- #
@@ -169,6 +174,31 @@ def test_search_allowed_projects_arg_drops_other_project(db, engine) -> None:
     result = server.erinys_search(query="shared token phrase", limit=10, allowed_projects=["A"])
     projects = {r["project"] for r in result["data"]["results"]}
     assert projects == {"A"}, "a caller restricted to project A must not retrieve project B rows"
+
+
+def _shadow_capture(observed: list[dict[str, object]]) -> ShadowCapture:
+    def capture(
+        query: str,
+        project: str | None,
+        results: list[dict[str, object]],
+        intended_use: str,
+    ) -> None:
+        observed.extend(results)
+    return capture
+
+
+def test_policy_filters_before_claim_shadow(db, engine, monkeypatch) -> None:
+    server.erinys_save(title="Alpha secret", content="shared token phrase alpha", project="A")
+    server.erinys_save(title="Beta secret", content="shared token phrase beta", project="B")
+    observed: list[dict[str, object]] = []
+    monkeypatch.setattr(server, "_record_claim_shadow", _shadow_capture(observed))
+    result = server.erinys_search(
+        query="shared token phrase",
+        limit=10,
+        allowed_projects=["A"],
+    )
+    assert result["ok"] is True
+    assert {row["project"] for row in observed} == {"A"}
 
 
 def test_search_allowed_projects_via_env(db, engine, monkeypatch) -> None:

@@ -20,6 +20,7 @@ from .db import embedding_engine, insert_observation_with_embedding, resolve_ses
 from .embedding import serialize_f32
 from .graph import create_edge
 from .provenance import build_provenance
+from .sentry import derived_memory_safety
 
 logger = logging.getLogger(__name__)
 
@@ -425,6 +426,7 @@ def _create_distillation_record(
     metadata["provenance"] = build_provenance(
         "distill", None, "distill", [raw_id]
     )
+    metadata["memory_safety"] = derived_memory_safety(raw_source)
 
     payload = {
         "title": _distilled_title(str(raw_source["title"]), level),

@@ -1,6 +1,6 @@
 # MCP Tool Surface
 
-The `erinys-memory` MCP server (`erinys_memory.server`) exposes 28 tools, all
+The `erinys-memory` MCP server (`erinys_memory.server`) exposes 29 tools, all
 prefixed `erinys_`. They fall into three tiers by stability and by what they
 depend on:
 
@@ -49,7 +49,7 @@ FTS5 + sqlite-vec + RRF pipeline in ~7–10 ms with no model inference.
 | `erinys_session_end` | Close a session, optionally attaching a summary. |
 | `erinys_session_summary` | Save a comprehensive end-of-session summary as an observation. |
 
-## Governance — the trust layer (7 tools)
+## Governance — the trust layer (8 tools)
 
 Local, zero LLM calls. These make memory auditable and correctable over time:
 where a fact came from, what it superseded, what contradicts it, what was true
@@ -63,7 +63,26 @@ at a given moment, and proof that a deletion actually happened.
 | `erinys_timeline` | Time-travel query: which facts were valid as of a specific point in time. |
 | `erinys_delete` | Delete a single observation, cascading dependent rows via FK rules. |
 | `erinys_forget` | Verified forgetting: delete an observation and its derived closure in one transaction, then prove zero residue with a membership test across every in-database substrate. Defaults to `dry_run`. See LIMITATIONS.md for external-substrate caveats. |
+| `erinys_backfill` | Plan or apply a bounded, timestamp-aware historical import. Apply requires a server feature flag and an exact reviewed plan digest. |
 | `erinys_prune` | Remove decayed observations below a strength threshold. Defaults to `dry_run`. |
+
+### Backfill contract
+
+`erinys_backfill(run_key, items, mode="plan", expected_plan_digest=None,
+repair_temporal_projection=False)` accepts 1–100 items through MCP. Every item
+must include a timezone-aware source timestamp and stable event key. A run is
+limited to one project, source kind, and namespace. `mode="apply"` is rejected
+unless `ERINYS_BACKFILL_ENABLED=1` and `expected_plan_digest` matches a fresh
+plan. Rollback is intentionally local CLI-only. See
+[BACKFILL.md](./BACKFILL.md).
+
+### Activation screening
+
+`erinys_get`, `erinys_search`, `erinys_recall`, and `erinys_context` accept
+`intended_use` (`context`, `evidence`, `preference`, or `directive`). Each
+returned observation includes an activation verdict. Unsafe untrusted content
+may be replaced by `[BLOCKED_BY_ERINYS_SENTRY]`. See
+[MEMORY_SAFETY.md](./MEMORY_SAFETY.md).
 
 ## Experimental — research / LLM-dependent (4 tools)
 
@@ -82,4 +101,4 @@ at a given moment, and proof that a deletion actually happened.
 
 ---
 
-**Tier counts:** Basic 17 · Governance 7 · Experimental 4 · **Total 28.**
+**Tier counts:** Basic 17 · Governance 8 · Experimental 4 · **Total 29.**
