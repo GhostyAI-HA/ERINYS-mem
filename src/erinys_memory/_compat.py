@@ -7,3 +7,6 @@ except ImportError:  # pragma: no cover - exercised on Python 3.10 CI
 
     class StrEnum(str, Enum):
         """Python 3.10-compatible subset of enum.StrEnum."""
+
+        def __str__(self) -> str:
+            return self.value

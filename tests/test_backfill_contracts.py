@@ -14,7 +14,7 @@ from erinys_memory.backfill import (
     digest,
     request_digest,
 )
-from erinys_memory.backfill_contracts import BackfillRequest
+from erinys_memory.backfill_contracts import BackfillRelation, BackfillRequest
 
 
 def item(**overrides: object) -> dict[str, object]:
@@ -40,6 +40,10 @@ def request(**overrides: object) -> BackfillRequest:
     payload: dict[str, object] = {"run_key": "run-1", "items": [item()]}
     payload.update(overrides)
     return BackfillRequest.model_validate(payload)
+
+
+def test_relation_string_uses_wire_value() -> None:
+    assert str(BackfillRelation.SUPPORTS) == "supports"
 
 
 def test_times_are_normalized_to_utc() -> None:
