@@ -1,5 +1,5 @@
 -- ============================================================
--- ERINYS Schema v2.0
+-- ERINYS Schema v3.0
 -- Single-file SQLite database for reflexive AI memory
 -- ============================================================
 
@@ -166,7 +166,9 @@ CREATE TABLE edges (
                 'relates_to','depends_on','implements',
                 'references','similar_to','contains',
                 'contradicts','supersedes','distilled_from',
-                'causal','entity','temporal'
+                'causal','entity','temporal',
+                'supports','narrows','derived_from',
+                'applicable_to','used_in','verified_by','resulted_in'
               )),
   weight      REAL    NOT NULL DEFAULT 1.0
               CHECK(weight >= 0.0 AND weight <= 1.0),
@@ -222,10 +224,84 @@ CREATE TABLE audit_log (
 );
 
 -- ────────────────────────────────────────
+-- Timestamp-aware historical backfill
+-- ────────────────────────────────────────
+CREATE TABLE backfill_runs (
+  run_id           TEXT PRIMARY KEY,
+  run_key          TEXT NOT NULL,
+  request_digest   TEXT NOT NULL,
+  plan_digest      TEXT NOT NULL,
+  project          TEXT NOT NULL,
+  source_kind      TEXT NOT NULL,
+  source_namespace TEXT NOT NULL,
+  status           TEXT NOT NULL CHECK(status IN (
+                     'PLANNED','APPLYING','APPLIED','PARTIAL',
+                     'FAILED','ROLLED_BACK'
+                   )),
+  principal        TEXT NOT NULL,
+  counts           TEXT CHECK(counts IS NULL OR json_valid(counts)),
+  created_at       DATETIME NOT NULL DEFAULT (datetime('now')),
+  completed_at     DATETIME,
+  UNIQUE(project, run_key)
+);
+
+CREATE TABLE observation_event_baselines (
+  observation_id INTEGER PRIMARY KEY
+                 REFERENCES observations(id) ON DELETE CASCADE,
+  access_count   INTEGER NOT NULL,
+  last_accessed  DATETIME,
+  enrolled_at    DATETIME NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE observation_events (
+  id             INTEGER PRIMARY KEY AUTOINCREMENT,
+  observation_id INTEGER NOT NULL
+                 REFERENCES observations(id) ON DELETE CASCADE,
+  run_id         TEXT NOT NULL
+                 REFERENCES backfill_runs(run_id) ON DELETE CASCADE,
+  event_type     TEXT NOT NULL CHECK(event_type IN (
+                   'RECORDED','USED','VERIFIED','OUTCOME','SUPERSEDED'
+                 )),
+  event_key      TEXT NOT NULL,
+  occurred_at    DATETIME NOT NULL,
+  source_locator TEXT,
+  source_hash    TEXT NOT NULL,
+  metadata       TEXT CHECK(metadata IS NULL OR json_valid(metadata)),
+  imported_at    DATETIME NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(observation_id, event_type, event_key)
+);
+
+CREATE TABLE backfill_run_observations (
+  run_id            TEXT NOT NULL
+                    REFERENCES backfill_runs(run_id) ON DELETE CASCADE,
+  observation_id    INTEGER NOT NULL
+                    REFERENCES observations(id) ON DELETE CASCADE,
+  disposition       TEXT NOT NULL CHECK(disposition IN ('CREATED','MATCHED')),
+  before_projection TEXT CHECK(
+                      before_projection IS NULL
+                      OR json_valid(before_projection)
+                    ),
+  after_projection  TEXT CHECK(
+                      after_projection IS NULL
+                      OR json_valid(after_projection)
+                    ),
+  PRIMARY KEY(run_id, observation_id)
+);
+
+CREATE INDEX idx_observation_events_observation
+  ON observation_events(observation_id);
+CREATE INDEX idx_observation_events_run
+  ON observation_events(run_id);
+CREATE INDEX idx_observation_events_type_time
+  ON observation_events(event_type, occurred_at);
+CREATE INDEX idx_backfill_run_observations_observation
+  ON backfill_run_observations(observation_id);
+
+-- ────────────────────────────────────────
 -- Schema version tracking
 -- ────────────────────────────────────────
 CREATE TABLE schema_version (
   version     INTEGER PRIMARY KEY,
   applied_at  DATETIME NOT NULL DEFAULT (datetime('now'))
 );
-INSERT INTO schema_version(version) VALUES (2);
+INSERT INTO schema_version(version) VALUES (3);

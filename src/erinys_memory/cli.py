@@ -20,6 +20,14 @@ from urllib.parse import quote
 
 from pydantic import BaseModel, Field, ValidationError, model_validator
 
+from .backfill import BackfillError
+from .backfill_contracts import (
+    BackfillRequest,
+    backfill_validation_code,
+    backfill_validation_message,
+)
+from .sentry import screen_observation
+
 
 DEFAULT_PROJECT = "default"
 DEFAULT_LIMIT = 10
@@ -32,7 +40,10 @@ JSON_INDENT = 2
 EXCERPT_LENGTH = 240
 LOCAL_COMMANDS = {"stats", "health", "undistilled", "doctor"}
 READONLY_COMMANDS = {"search", "recall", "context"}
-WRITE_COMMANDS = {"save", "summary", "distill", "dream", "prune"}
+WRITE_COMMANDS = {
+    "save", "summary", "distill", "dream", "prune",
+    "backfill", "backfill-rollback",
+}
 SANDBOX_DB_WRITE_REQUIRED = "SANDBOX_DB_WRITE_REQUIRED"
 DB_WRITE_UNAVAILABLE = "DB_WRITE_UNAVAILABLE"
 READONLY_DB_MARKERS = (
@@ -56,6 +67,8 @@ ValidCommand: TypeAlias = Literal[
     "prune",
     "health",
     "doctor",
+    "backfill",
+    "backfill-rollback",
 ]
 ValidType: TypeAlias = Literal[
     "manual",
@@ -70,6 +83,8 @@ ValidType: TypeAlias = Literal[
     "meta_knowledge",
 ]
 ValidDistillLevel: TypeAlias = Literal["concrete", "abstract", "meta"]
+ValidIntendedUse: TypeAlias = Literal["context", "evidence", "preference", "directive"]
+ValidSourceClass: TypeAlias = Literal["direct_user", "external"]
 
 
 class CliArgs(BaseModel):
@@ -94,19 +109,22 @@ class CliArgs(BaseModel):
     deep: bool = False
     confirm_global: bool = False
     json_output: bool = True
+    intended_use: ValidIntendedUse = "context"
+    source_class: ValidSourceClass | None = None
+    file: str | None = None
+    run_key: str | None = None
+    plan_digest: str | None = None
+    repair_temporal_projection: bool = False
+    allow_historical_retention: bool = False
+    allow_global: bool = False
+    run_id: str | None = None
 
     @model_validator(mode="after")
     def validate_command_payload(self) -> "CliArgs":
-        if self.command in {"save", "summary"} and not self.payload_source:
-            raise ValueError("--content or --content-file is required")
-        if self.command == "save" and not self.title:
-            raise ValueError("save requires --title")
-        if self.command == "search" and not self.query:
-            raise ValueError("search requires query")
-        if self.command in {"get", "distill"} and self.observation_id is None:
-            raise ValueError(f"{self.command} requires observation_id")
-        if self.command == "prune" and not self.dry_run and not self.confirm_global:
-            raise ValueError("prune --execute is a GLOBAL operation across all projects; re-run with --confirm-global")
+        _validate_content_args(self)
+        _validate_lookup_args(self)
+        _validate_prune_args(self)
+        _validate_backfill_args(self)
         return self
 
     @property
@@ -114,11 +132,43 @@ class CliArgs(BaseModel):
         return self.content or self.content_file
 
 
+def _validate_content_args(args: CliArgs) -> None:
+    if args.command in {"save", "summary"} and not args.payload_source:
+        raise ValueError("--content or --content-file is required")
+    if args.command == "save" and not args.title:
+        raise ValueError("save requires --title")
+
+
+def _validate_lookup_args(args: CliArgs) -> None:
+    if args.command == "search" and not args.query:
+        raise ValueError("search requires query")
+    if args.command in {"get", "distill"} and args.observation_id is None:
+        raise ValueError(f"{args.command} requires observation_id")
+
+
+def _validate_prune_args(args: CliArgs) -> None:
+    if args.command == "prune" and not args.dry_run and not args.confirm_global:
+        raise ValueError(
+            "prune --execute is GLOBAL; re-run with --confirm-global",
+        )
+
+
+def _validate_backfill_args(args: CliArgs) -> None:
+    if args.command == "backfill" and (not args.file or not args.run_key):
+        raise ValueError("backfill requires --file and --run-key")
+    if args.command == "backfill" and not args.dry_run and not args.plan_digest:
+        raise ValueError("backfill --execute requires --plan-digest")
+    if args.command == "backfill-rollback" and not args.run_id:
+        raise ValueError("backfill-rollback requires run_id")
+
+
 CliArgs.model_rebuild(
     _types_namespace={
         "ValidCommand": ValidCommand,
         "ValidType": ValidType,
         "ValidDistillLevel": ValidDistillLevel,
+        "ValidIntendedUse": ValidIntendedUse,
+        "ValidSourceClass": ValidSourceClass,
     }
 )
 
@@ -145,6 +195,8 @@ def build_parser() -> argparse.ArgumentParser:
     add_distill_parser(subparsers)
     add_dream_parser(subparsers)
     add_prune_parser(subparsers)
+    add_backfill_parser(subparsers)
+    add_backfill_rollback_parser(subparsers)
     add_health_parser(subparsers)
     add_doctor_parser(subparsers)
     return parser
@@ -175,6 +227,7 @@ def add_save_parser(
     parser.add_argument("--topic-key")
     parser.add_argument("--session-id")
     parser.add_argument("--metadata-json")
+    parser.add_argument("--source-class", choices=["direct_user", "external"])
     add_json_flag(parser)
 
 
@@ -193,6 +246,7 @@ def add_get_parser(
 ) -> None:
     parser = subparsers.add_parser("get")
     parser.add_argument("observation_id", type=int)
+    add_intended_use_arg(parser)
     add_json_flag(parser)
 
 
@@ -205,6 +259,14 @@ def add_readonly_flag(parser: argparse.ArgumentParser) -> None:
     )
 
 
+def add_intended_use_arg(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--intended-use",
+        choices=["context", "evidence", "preference", "directive"],
+        default="context",
+    )
+
+
 def add_search_parser(
     subparsers: argparse._SubParsersAction[argparse.ArgumentParser],
 ) -> None:
@@ -212,6 +274,7 @@ def add_search_parser(
     parser.add_argument("query")
     add_project_arg(parser)
     parser.add_argument("--limit", type=int, default=DEFAULT_LIMIT)
+    add_intended_use_arg(parser)
     add_readonly_flag(parser)
     add_json_flag(parser)
 
@@ -224,6 +287,7 @@ def add_project_limit_parser(
     parser = subparsers.add_parser(name)
     add_project_arg(parser)
     parser.add_argument("--limit", type=int, default=DEFAULT_LIMIT)
+    add_intended_use_arg(parser)
     if readonly:
         add_readonly_flag(parser)
     add_json_flag(parser)
@@ -310,6 +374,40 @@ def add_prune_parser(
     add_json_flag(parser)
 
 
+def add_backfill_parser(
+    subparsers: argparse._SubParsersAction[argparse.ArgumentParser],
+) -> None:
+    parser = subparsers.add_parser(
+        "backfill",
+        help="plan or apply a timestamp-aware historical import",
+    )
+    parser.add_argument("--file", required=True)
+    parser.add_argument("--run-key", required=True)
+    add_project_arg(parser)
+    parser.add_argument(
+        "--execute", dest="dry_run", action="store_false", default=True,
+    )
+    parser.add_argument("--plan-digest")
+    parser.add_argument("--repair-temporal-projection", action="store_true")
+    parser.add_argument("--allow-historical-retention", action="store_true")
+    parser.add_argument("--allow-global", action="store_true")
+    add_json_flag(parser)
+
+
+def add_backfill_rollback_parser(
+    subparsers: argparse._SubParsersAction[argparse.ArgumentParser],
+) -> None:
+    parser = subparsers.add_parser(
+        "backfill-rollback",
+        help="dry-run or execute rollback of one backfill run",
+    )
+    parser.add_argument("run_id")
+    parser.add_argument(
+        "--execute", dest="dry_run", action="store_false", default=True,
+    )
+    add_json_flag(parser)
+
+
 def parse_args(argv: list[str] | None = None) -> CliArgs:
     namespace = build_parser().parse_args(argv)
     return CliArgs.model_validate(vars(namespace))
@@ -365,6 +463,7 @@ def run_save(args: CliArgs, server: object | None) -> dict[str, object]:
         topic_key=args.topic_key,
         session_id=args.session_id,
         metadata=parse_metadata(args.metadata_json),
+        source_class=args.source_class,
     )
 
 
@@ -379,32 +478,47 @@ def run_summary(args: CliArgs, server: object | None) -> dict[str, object]:
 
 
 def run_get(args: CliArgs, server: object | None) -> dict[str, object]:
-    return call_tool(server, "erinys_get", id=args.observation_id)
+    return call_tool(
+        server, "erinys_get", id=args.observation_id,
+        intended_use=args.intended_use,
+    )
 
 
 def run_search(args: CliArgs, server: object | None) -> dict[str, object]:
     if server is None:
         return readonly_search(args)
-    return call_tool(server, "erinys_search", query=args.query, project=args.project, limit=args.limit)
+    return call_tool(
+        server, "erinys_search", query=args.query, project=args.project,
+        limit=args.limit, intended_use=args.intended_use,
+    )
 
 
 def run_recall(args: CliArgs, server: object | None) -> dict[str, object]:
     if server is None:
         return readonly_recall(args)
-    return call_tool(server, "erinys_recall", project=args.project, limit=args.limit)
+    return call_tool(
+        server, "erinys_recall", project=args.project, limit=args.limit,
+        intended_use=args.intended_use,
+    )
 
 
 def run_context(args: CliArgs, server: object | None) -> dict[str, object]:
     if server is None:
         return readonly_context(args)
-    return call_tool(server, "erinys_context", project=args.project, limit=args.limit)
+    return call_tool(
+        server, "erinys_context", project=args.project, limit=args.limit,
+        intended_use=args.intended_use,
+    )
 
 
 def row_to_dict(row: sqlite3.Row) -> dict[str, object]:
     return {key: row[key] for key in row.keys()}
 
 
-OBSERVATION_EXCERPT_COLUMNS = f"id, title, type, project, created_at, substr(content, 1, {EXCERPT_LENGTH}) AS excerpt"
+OBSERVATION_EXCERPT_COLUMNS = (
+    f"id, title, type, project, created_at, content AS _sentry_content, "
+    f"substr(content, 1, {EXCERPT_LENGTH}) AS excerpt"
+)
 
 
 def fts_match_expression(query: str) -> str:
@@ -417,6 +531,7 @@ def fts_search_rows(
 ) -> list[dict[str, object]]:
     sql = (
         "SELECT o.id, o.title, o.type, o.project, o.created_at, "
+        "o.content AS _sentry_content, "
         f"substr(o.content, 1, {EXCERPT_LENGTH}) AS excerpt "
         "FROM observations_fts f JOIN observations o ON o.id = f.rowid "
         "WHERE observations_fts MATCH ?"
@@ -458,6 +573,7 @@ def keyword_search_rows(
 def readonly_search(args: CliArgs) -> dict[str, object]:
     with connect_readonly_db(db_path()) as conn:
         rows = keyword_search_rows(conn, str(args.query), args.project, args.limit)
+    rows = screen_readonly_rows(rows, args.intended_use)
     data = {"query": args.query, "results": rows, "mode": "readonly-keyword"}
     return {"ok": True, "data": data, "error": None}
 
@@ -477,6 +593,7 @@ def recent_observation_rows(
 def readonly_recall(args: CliArgs) -> dict[str, object]:
     with connect_readonly_db(db_path()) as conn:
         rows = recent_observation_rows(conn, args.project, args.limit)
+    rows = screen_readonly_rows(rows, args.intended_use)
     return {"ok": True, "data": {"observations": rows, "mode": "readonly"}, "error": None}
 
 
@@ -496,8 +613,48 @@ def readonly_context(args: CliArgs) -> dict[str, object]:
     with connect_readonly_db(db_path()) as conn:
         sessions = recent_session_rows(conn, args.project, args.limit)
         observations = recent_observation_rows(conn, args.project, min(args.limit, DEFAULT_LIMIT))
+    sessions = screen_readonly_sessions(sessions, args.intended_use)
+    observations = screen_readonly_rows(observations, args.intended_use)
     data = {"project": args.project, "sessions": sessions, "observations": observations, "mode": "readonly"}
     return {"ok": True, "data": data, "error": None}
+
+
+def screen_readonly_row(
+    row: dict[str, object],
+    intended_use: str,
+) -> dict[str, object]:
+    screened = screen_observation(
+        {"content": row.get("_sentry_content", ""), "source": "unknown"},
+        intended_use,
+    )
+    result = {
+        key: value for key, value in row.items()
+        if key != "_sentry_content"
+    }
+    result["excerpt"] = screened["content"]
+    result["activation"] = screened["activation"]
+    return result
+
+
+def screen_readonly_rows(
+    rows: list[dict[str, object]],
+    intended_use: str,
+) -> list[dict[str, object]]:
+    return [screen_readonly_row(row, intended_use) for row in rows]
+
+
+def screen_readonly_sessions(
+    sessions: list[dict[str, object]],
+    intended_use: str,
+) -> list[dict[str, object]]:
+    for session in sessions:
+        screened = screen_observation(
+            {"content": session.get("summary", ""), "source": "unknown"},
+            intended_use,
+        )
+        session["summary"] = screened["content"]
+        session["summary_activation"] = screened["activation"]
+    return sessions
 
 
 def db_path() -> Path:
@@ -715,6 +872,104 @@ def run_prune(args: CliArgs, server: object | None) -> dict[str, object]:
     return call_tool(server, "erinys_prune", threshold=args.threshold, dry_run=args.dry_run)
 
 
+def _backfill_lines(path: str) -> list[str]:
+    text = (
+        sys.stdin.read()
+        if path == "-"
+        else Path(path).read_text(encoding="utf-8")
+    )
+    return [line for line in text.splitlines() if line.strip()]
+
+
+def read_backfill_items(
+    path: str,
+    project: str | None,
+) -> list[dict[str, object]]:
+    items: list[dict[str, object]] = []
+    for line_number, line in enumerate(_backfill_lines(path), start=1):
+        value = json.loads(line)
+        if not isinstance(value, dict):
+            raise TypeError(
+                f"backfill JSONL line {line_number} must be an object",
+            )
+        item = dict(value)
+        if project is not None and item.get("project") not in {None, project}:
+            raise ValueError(
+                f"backfill JSONL line {line_number} project mismatch",
+            )
+        if project is not None:
+            item["project"] = project
+        items.append(item)
+    if not items:
+        raise ValueError("backfill JSONL must contain at least one item")
+    return items
+
+
+def _validated_backfill_request(args: CliArgs) -> BackfillRequest:
+    payload = {
+        "run_key": args.run_key,
+        "items": read_backfill_items(str(args.file), args.project),
+        "mode": "plan" if args.dry_run else "apply",
+        "expected_plan_digest": args.plan_digest,
+        "repair_temporal_projection": args.repair_temporal_projection,
+    }
+    try:
+        return BackfillRequest.model_validate(payload)
+    except ValidationError as exc:
+        code = backfill_validation_code(exc)
+        raise BackfillError(code, backfill_validation_message(code)) from exc
+
+
+def run_backfill(
+    args: CliArgs,
+    server: object | None,
+) -> dict[str, object]:
+    request = _validated_backfill_request(args)
+    local = getattr(server, "run_backfill_local", None)
+    if callable(local):
+        return _run_local_backfill(args, request, local)
+    return _run_mcp_backfill(server, request)
+
+
+def _run_local_backfill(
+    args: CliArgs,
+    request: BackfillRequest,
+    local: Callable[..., object],
+) -> dict[str, object]:
+    data = local(
+        request, allow_historical=args.allow_historical_retention,
+        allow_global=args.allow_global,
+    )
+    return {"ok": True, "data": data, "error": None}
+
+
+def _run_mcp_backfill(
+    server: object | None,
+    request: BackfillRequest,
+) -> dict[str, object]:
+    return call_tool(
+        server, "erinys_backfill",
+        run_key=request.run_key,
+        items=[item.model_dump(mode="json") for item in request.items],
+        mode=request.mode,
+        expected_plan_digest=request.expected_plan_digest,
+        repair_temporal_projection=request.repair_temporal_projection,
+    )
+
+
+def run_backfill_rollback(
+    args: CliArgs,
+    server: object | None,
+) -> dict[str, object]:
+    local = getattr(server, "rollback_backfill_local", None)
+    if not callable(local):
+        return error_result(
+            "CLI_ERROR", "local backfill rollback is unavailable",
+        )
+    data = local(str(args.run_id), args.dry_run)
+    return {"ok": True, "data": data, "error": None}
+
+
 def vector_status(stats_data: dict[str, object]) -> str:
     vector = stats_data.get("vector_health")
     if not isinstance(vector, dict):
@@ -888,6 +1143,8 @@ HANDLERS: dict[ValidCommand, Callable[[CliArgs, object | None], dict[str, object
     "distill": run_distill,
     "dream": run_dream,
     "prune": run_prune,
+    "backfill": run_backfill,
+    "backfill-rollback": run_backfill_rollback,
     "health": run_health,
     "doctor": run_doctor,
 }
@@ -954,7 +1211,13 @@ def normalize_write_result(result: dict[str, object]) -> dict[str, object]:
 
 
 def error_from_exception(exc: Exception) -> dict[str, object]:
-    code = "VALIDATION" if isinstance(exc, (ValidationError, ValueError)) else "CLI_ERROR"
+    if isinstance(exc, BackfillError):
+        return error_result(exc.code, str(exc))
+    code = (
+        "VALIDATION"
+        if isinstance(exc, (TypeError, ValidationError, ValueError))
+        else "CLI_ERROR"
+    )
     return error_result(code, str(exc))
 
 

@@ -17,10 +17,20 @@ from threading import Lock
 from typing import Any, Callable, Mapping
 
 from fastmcp import FastMCP
+from pydantic import ValidationError
 
+from .backfill import BackfillError, BackfillService
+from .backfill_contracts import (
+    BackfillMode,
+    BackfillRequest,
+    backfill_validation_code,
+    backfill_validation_message,
+)
 from .collider import MemoryCollider, get_collision, pair_similarity, save_collision
+from .claim_shadow_runtime import claim_shadow_enabled, observe_shadow_search
 from .config import ErinysConfig
 from .provenance import build_provenance
+from .sentry import blocked_count, build_memory_safety, screen_observation, screen_observations
 from .db import (
     delete_observation_with_embedding,
     embedding_engine,
@@ -59,6 +69,19 @@ SECRET_PATTERNS = [
     re.compile(r"(?i)(api[_-]?key|token|secret)\s*[:=]\s*([^\s,;]+)"),
     re.compile(r"\bsk-[A-Za-z0-9]{20,}\b"),
 ]
+SERVER_CONTROLLED_METADATA = frozenset({
+    "action_authority",
+    "historical_value",
+    "imported_at",
+    "legal_retention",
+    "memory_safety",
+    "policy_authority",
+    "provenance",
+    "risk_class",
+    "source_class",
+    "verification_state",
+})
+MCP_BACKFILL_MAX_ITEMS = 100
 
 mcp = FastMCP("ERINYS")
 _CONFIG = ErinysConfig()
@@ -91,6 +114,8 @@ def _map_integrity_error(exc: sqlite3.IntegrityError) -> dict[str, Any]:
 def _envelope(action: Callable[[], Any]) -> dict[str, Any]:
     try:
         return _ok(action())
+    except BackfillError as exc:
+        return _error(exc.code, str(exc))
     except PolicyDeniedError as exc:
         return _error("POLICY_DENIED", str(exc))
     except LookupError as exc:
@@ -246,6 +271,62 @@ def _validate_metadata_filter(metadata_filter: dict[str, object] | None) -> None
         raise ValueError("metadata_filter must be a dict")
 
 
+def _backfill_validation_error(exc: ValidationError) -> BackfillError:
+    code = backfill_validation_code(exc)
+    return BackfillError(code, backfill_validation_message(code))
+
+
+def _backfill_request(
+    run_key: str, items: list[dict[str, object]], mode: str,
+    expected_plan_digest: str | None, repair_temporal_projection: bool,
+) -> BackfillRequest:
+    payload = {
+        "run_key": run_key, "items": items, "mode": mode,
+        "expected_plan_digest": expected_plan_digest,
+        "repair_temporal_projection": repair_temporal_projection,
+    }
+    try:
+        return BackfillRequest.model_validate(payload)
+    except ValidationError as exc:
+        raise _backfill_validation_error(exc) from exc
+
+
+def _backfill_service() -> BackfillService:
+    return BackfillService(
+        _db(), _CONFIG, _embedding().embed_batch, _redact_text,
+        max_items=min(_CONFIG.backfill_max_items, MCP_BACKFILL_MAX_ITEMS),
+    )
+
+
+def _local_backfill_service() -> BackfillService:
+    return BackfillService(
+        _db(), _CONFIG, _embedding().embed_batch, _redact_text,
+    )
+
+
+def run_backfill_local(
+    request: BackfillRequest,
+    *,
+    allow_historical: bool = False,
+    allow_global: bool = False,
+) -> dict[str, object]:
+    service = _local_backfill_service()
+    if request.mode is BackfillMode.APPLY:
+        return service.apply(
+            request, allow_historical=allow_historical, allow_global=allow_global,
+        )
+    return service.plan(
+        request, allow_historical=allow_historical, allow_global=allow_global,
+    )
+
+
+def rollback_backfill_local(
+    run_id: str,
+    dry_run: bool = True,
+) -> dict[str, object]:
+    return _local_backfill_service().rollback(run_id, dry_run)
+
+
 def _session_exists(session_id: str) -> bool:
     row = _db().execute("SELECT 1 FROM sessions WHERE id = ?", [session_id]).fetchone()
     return row is not None
@@ -350,43 +431,78 @@ def _audit(
         logger.warning("Failed to write audit_log for %s", operation)
 
 
-def _observation_payload(
-    title: str,
-    content: str,
-    obs_type: str,
+def _record_claim_shadow(
+    query: str,
     project: str | None,
-    scope: str,
-    topic_key: str | None,
-    session_id: str | None,
-    metadata: dict[str, object] | None,
-    source: str = "user",
-    principal: str | None = None,
-    derived_via: str = "save",
-    parents: list[int] | None = None,
+    results: list[dict[str, Any]],
+    intended_use: str,
+) -> None:
+    if not claim_shadow_enabled():
+        return
+    receipt = observe_shadow_search(_db(), query, project, results, intended_use)
+    if receipt is None:
+        return
+    _audit("claim_shadow", "retrieval", None, receipt.model_dump(mode="json"))
+
+
+def _observation_payload(
+    title: str, content: str, obs_type: str, project: str | None, scope: str,
+    topic_key: str | None, session_id: str | None,
+    metadata: dict[str, object] | None, source: str = "user",
+    principal: str | None = None, derived_via: str = "save",
+    parents: list[int] | None = None, source_class: str | None = None,
 ) -> dict[str, object]:
+    _validate_observation_input(title, content, obs_type, scope, session_id)
+    is_anti_pattern, is_pattern = _infer_flags(obs_type)
+    enriched = _enriched_metadata(
+        metadata, source, principal, derived_via, parents, source_class,
+    )
+    return _observation_payload_fields(
+        title, content, obs_type, project, scope, topic_key, session_id,
+        source, is_anti_pattern, is_pattern, enriched,
+    )
+
+
+def _observation_payload_fields(
+    title: str, content: str, obs_type: str, project: str | None, scope: str,
+    topic_key: str | None, session_id: str | None, source: str,
+    is_anti_pattern: int, is_pattern: int, metadata: dict[str, object],
+) -> dict[str, object]:
+    return {
+        "title": _redact_text(title), "content": _redact_text(content),
+        "type": obs_type, "project": project, "scope": scope,
+        "is_anti_pattern": is_anti_pattern, "is_pattern": is_pattern,
+        "source": source, "embedding_model": _embedding().model_name,
+        "topic_key": topic_key, "metadata": metadata, "session_id": session_id,
+    }
+
+
+def _validate_observation_input(
+    title: str, content: str, obs_type: str, scope: str, session_id: str | None,
+) -> None:
     _validate_title(title)
     _validate_content(content)
     _validate_type(obs_type)
     _validate_scope(scope)
     if session_id is not None and not _session_exists(session_id):
         raise LookupError(f"session not found: {session_id}")
-    is_anti_pattern, is_pattern = _infer_flags(obs_type)
-    # VMG: provenance はサーバ管理。呼び出し側の metadata は保持しつつ provenance を上書き。
-    enriched = dict(metadata) if isinstance(metadata, dict) else {}
+
+
+def _enriched_metadata(
+    metadata: dict[str, object] | None, source: str, principal: str | None,
+    derived_via: str, parents: list[int] | None, source_class: str | None,
+) -> dict[str, object]:
+    enriched = _caller_metadata(metadata)
     enriched["provenance"] = build_provenance(source, principal, derived_via, parents)
+    enriched["memory_safety"] = build_memory_safety(source, derived_via, source_class)
+    return enriched
+
+
+def _caller_metadata(metadata: dict[str, object] | None) -> dict[str, object]:
+    supplied = dict(metadata) if isinstance(metadata, dict) else {}
     return {
-        "title": _redact_text(title),
-        "content": _redact_text(content),
-        "type": obs_type,
-        "project": project,
-        "scope": scope,
-        "is_anti_pattern": is_anti_pattern,
-        "is_pattern": is_pattern,
-        "source": source,
-        "embedding_model": _embedding().model_name,
-        "topic_key": topic_key,
-        "metadata": enriched,
-        "session_id": session_id,
+        key: value for key, value in supplied.items()
+        if key not in SERVER_CONTROLLED_METADATA
     }
 
 
@@ -450,7 +566,11 @@ def _search_results(
     return filtered[:normalized_limit]
 
 
-def _recent_observations(project: str | None = None, limit: int = 10) -> list[dict[str, Any]]:
+def _recent_observations(
+    project: str | None = None,
+    limit: int = 10,
+    intended_use: str = "context",
+) -> list[dict[str, Any]]:
     normalized_limit = _validate_limit(limit)
     if project is None:
         rows = _db().execute(
@@ -482,7 +602,27 @@ def _recent_observations(project: str | None = None, limit: int = 10) -> list[di
             record.get("last_accessed"),
             int(record["access_count"]),
         )
-    return records
+    return screen_observations(records, intended_use)
+
+
+def _screen_session(session: dict[str, Any], intended_use: str) -> dict[str, Any]:
+    summary = session.get("summary")
+    if isinstance(summary, str):
+        screened = screen_observation(
+            {"content": summary, "source": "agent"}, intended_use,
+        )
+        session["summary"] = screened["content"]
+        session["summary_activation"] = screened["activation"]
+    observations = session.get("observations")
+    if isinstance(observations, list):
+        session["observations"] = screen_observations(observations, intended_use)
+    return session
+
+
+def _screen_session_observations(
+    sessions: list[dict[str, Any]], intended_use: str,
+) -> list[dict[str, Any]]:
+    return [_screen_session(session, intended_use) for session in sessions]
 
 
 def _count_cascade_targets(obs_id: int) -> dict[str, int]:
@@ -706,6 +846,7 @@ def erinys_save(
     principal: str | None = None,
     allowed_projects: list[str] | None = None,
     allowed_scopes: list[str] | None = None,
+    source_class: str | None = None,
 ) -> dict:
     """Save a structured observation to ERINYS memory.
 
@@ -720,7 +861,8 @@ def erinys_save(
 
     def action() -> dict[str, Any]:
         payload = _observation_payload(title, content, type, project, scope, topic_key,
-                                       session_id, metadata, principal=principal)
+                                       session_id, metadata, principal=principal,
+                                       source_class=source_class)
         eff_projects = _resolve_allowed_projects(allowed_projects)
         eff_scopes = _resolve_allowed_scopes(allowed_scopes)
         if policy_is_active(eff_projects, eff_scopes):
@@ -757,9 +899,16 @@ def erinys_save(
 @mcp.tool
 def erinys_get(
     id: int,
+    intended_use: str = "context",
 ) -> dict:
     """Get a single observation by ID (full content, untruncated)."""
-    return _envelope(lambda: {"observation": _fetch_observation(id)})
+    return _envelope(
+        lambda: {
+            "observation": screen_observation(
+                _fetch_observation(id), intended_use,
+            )
+        }
+    )
 
 
 def _lineage_node(record: dict[str, Any]) -> dict[str, Any]:
@@ -858,11 +1007,12 @@ def erinys_update(
             _validate_scope(scope)
             fields["scope"] = scope
         if metadata is not None:
-            # VMG: 更新で provenance(作成時の出自履歴)を消させない。既存を引き継ぐ。
-            merged = dict(metadata)
+            merged = _caller_metadata(metadata)
             old_meta = current.get("metadata")
-            if isinstance(old_meta, dict) and "provenance" in old_meta:
-                merged["provenance"] = old_meta["provenance"]
+            if isinstance(old_meta, dict):
+                for key in SERVER_CONTROLLED_METADATA:
+                    if key in old_meta:
+                        merged[key] = old_meta[key]
             fields["metadata"] = merged
         update_observation(_db(), id, fields)
         record = _fetch_observation(id)
@@ -1024,6 +1174,7 @@ def erinys_search(
     allowed_projects: list[str] | None = None,
     allowed_scopes: list[str] | None = None,
     principal: str | None = None,
+    intended_use: str = "context",
 ) -> dict:
     """RRF hybrid search (FTS5 keyword + vector similarity).
 
@@ -1044,8 +1195,16 @@ def erinys_search(
                 allowed_projects=eff_projects,
                 allowed_scopes=eff_scopes,
             )
-        _audit("search", "observation", None, {"query": query, "count": len(results), "project": project})
-        return {"query": query, "results": results, "answerability": assess_answerability(query, results)}
+        _record_claim_shadow(query, project, results, intended_use)
+        results = screen_observations(results, intended_use)
+        _audit("search", "observation", None, {
+            "query": query, "count": len(results), "project": project,
+            "blocked": blocked_count(results), "intended_use": intended_use,
+        })
+        return {
+            "query": query, "results": results,
+            "answerability": assess_answerability(query, results),
+        }
 
     return _envelope(action)
 
@@ -1118,12 +1277,16 @@ def erinys_session_summary(
 def erinys_recall(
     project: str | None = None,
     limit: int = 10,
+    intended_use: str = "context",
 ) -> dict:
     """Recall recent observations for context."""
 
     def action() -> dict[str, Any]:
-        observations = _recent_observations(project, limit)
-        _audit("recall", "observation", None, {"count": len(observations), "project": project})
+        observations = _recent_observations(project, limit, intended_use)
+        _audit("recall", "observation", None, {
+            "count": len(observations), "project": project,
+            "blocked": blocked_count(observations), "intended_use": intended_use,
+        })
         return {"observations": observations}
 
     return _envelope(action)
@@ -1133,12 +1296,14 @@ def erinys_recall(
 def erinys_context(
     project: str,
     limit: int = 20,
+    intended_use: str = "context",
 ) -> dict:
     """Get recent session context for a project."""
 
     def action() -> dict[str, Any]:
         sessions = get_recent_sessions(_db(), project, _validate_limit(limit))
-        observations = _recent_observations(project, min(limit, 10))
+        sessions = _screen_session_observations(sessions, intended_use)
+        observations = _recent_observations(project, min(limit, 10), intended_use)
         _audit("context", "session", None, {"project": project, "session_count": len(sessions)})
         return {"project": project, "sessions": sessions, "observations": observations}
 
@@ -1259,35 +1424,114 @@ def erinys_traverse(
 
 
 @mcp.tool
+def erinys_backfill(
+    run_key: str,
+    items: list[dict[str, object]],
+    mode: str = "plan",
+    expected_plan_digest: str | None = None,
+    repair_temporal_projection: bool = False,
+) -> dict:
+    """Plan or apply bounded historical records with event-ledger idempotency."""
+    return _envelope(lambda: _run_mcp_backfill(
+        run_key, items, mode, expected_plan_digest,
+        repair_temporal_projection,
+    ))
+
+
+def _run_mcp_backfill(
+    run_key: str, items: list[dict[str, object]], mode: str,
+    expected_plan_digest: str | None, repair: bool,
+) -> dict[str, object]:
+    request = _backfill_request(
+        run_key, items, mode, expected_plan_digest, repair,
+    )
+    service = _backfill_service()
+    return (
+        service.apply(request)
+        if request.mode is BackfillMode.APPLY
+        else service.plan(request)
+    )
+
+
+def _retention_protected(record: Mapping[str, object]) -> bool:
+    metadata = record.get("metadata")
+    values = metadata if isinstance(metadata, Mapping) else {}
+    risk = str(values.get("risk_class", "LOW"))
+    return bool(
+        values.get("legal_retention")
+        or values.get("historical_value")
+        or risk in {"HIGH", "CRITICAL"}
+    )
+
+
+def _prune_assessment(
+    record: dict[str, Any], threshold: float,
+) -> dict[str, Any] | None:
+    strength = _prune_strength(record)
+    if strength >= threshold:
+        return None
+    protected = _retention_protected(record)
+    return {
+        **record, "effective_strength": strength,
+        "retention_protected": protected, "would_prune": not protected,
+    }
+
+
+def _prune_strength(record: Mapping[str, Any]) -> float:
+    return current_strength(
+        float(record["base_strength"]),
+        record["created_at"],
+        record.get("last_accessed"),
+        int(record["access_count"]),
+    )
+
+
+@mcp.tool
 def erinys_prune(
     threshold: float = 0.1,
     dry_run: bool = True,
 ) -> dict:
     """Prune decayed observations below threshold."""
+    return _envelope(lambda: _prune(threshold, dry_run))
 
-    def action() -> dict[str, Any]:
-        rows = _db().execute("SELECT * FROM observations").fetchall()
-        candidates: list[dict[str, Any]] = []
-        for row in rows:
-            record = _normalize_observation(row)
-            strength = current_strength(
-                float(record["base_strength"]),
-                record["created_at"],
-                record.get("last_accessed"),
-                int(record["access_count"]),
-            )
-            if strength < threshold:
-                record["effective_strength"] = strength
-                candidates.append(record)
-        deleted_ids: list[int] = []
-        if not dry_run:
-            for record in candidates:
-                delete_observation_with_embedding(_db(), int(record["id"]))
-                deleted_ids.append(int(record["id"]))
-        _audit("prune", "observation", None, {"threshold": threshold, "count": len(candidates), "dry_run": dry_run})
-        return {"threshold": threshold, "dry_run": dry_run, "candidates": candidates, "deleted_ids": deleted_ids}
 
-    return _envelope(action)
+def _prune(threshold: float, dry_run: bool) -> dict[str, object]:
+    assessments = _prune_assessments(threshold)
+    candidates = [row for row in assessments if bool(row["would_prune"])]
+    protected = [row for row in assessments if bool(row["retention_protected"])]
+    deleted_ids = _delete_prune_candidates(candidates, dry_run)
+    detail = {
+        "threshold": threshold, "count": len(candidates),
+        "protected": len(protected), "dry_run": dry_run,
+    }
+    _audit("prune", "observation", None, detail)
+    return {
+        "threshold": threshold, "dry_run": dry_run,
+        "candidates": candidates, "protected": protected,
+        "deleted_ids": deleted_ids,
+    }
+
+
+def _prune_assessments(threshold: float) -> list[dict[str, Any]]:
+    rows = _db().execute("SELECT * FROM observations").fetchall()
+    return [
+        assessment for row in rows
+        if (assessment := _prune_assessment(
+            _normalize_observation(row), threshold,
+        )) is not None
+    ]
+
+
+def _delete_prune_candidates(
+    candidates: list[dict[str, Any]],
+    dry_run: bool,
+) -> list[int]:
+    if dry_run:
+        return []
+    ids = [int(record["id"]) for record in candidates]
+    for obs_id in ids:
+        delete_observation_with_embedding(_db(), obs_id)
+    return ids
 
 
 @mcp.tool
@@ -1316,6 +1560,7 @@ def erinys_batch_save(
                 item.get("metadata"),
                 principal=item.get("principal"),
                 derived_via="batch_save",
+                source_class=item.get("source_class"),
             )
             payloads.append(payload)
             contents.append(str(payload["content"]))

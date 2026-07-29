@@ -12,6 +12,10 @@ def _parse_positive_int(raw: str, fallback: int) -> int:
         return fallback
 
 
+def _parse_csv(raw: str) -> tuple[str, ...]:
+    return tuple(value.strip() for value in raw.split(",") if value.strip())
+
+
 @dataclass
 class ErinysConfig:
     db_path: str = os.environ.get("ERINYS_DB_PATH", "~/.erinys/memory.db")
@@ -42,6 +46,19 @@ class ErinysConfig:
     audit_retention_days: int = 90
     redact_secret_patterns: bool = True
     auto_distill_on_save: bool = os.environ.get("ERINYS_AUTO_DISTILL", "1") != "0"
+    backfill_apply_enabled: bool = os.environ.get("ERINYS_BACKFILL_ENABLED", "0") == "1"
+    backfill_max_items: int = field(default_factory=lambda: _parse_positive_int(
+        os.environ.get("ERINYS_BACKFILL_MAX_ITEMS", "100"), 100
+    ))
+    backfill_chunk_size: int = field(default_factory=lambda: _parse_positive_int(
+        os.environ.get("ERINYS_BACKFILL_CHUNK_SIZE", "100"), 100
+    ))
+    backfill_clock_skew_seconds: int = field(default_factory=lambda: _parse_positive_int(
+        os.environ.get("ERINYS_BACKFILL_CLOCK_SKEW_SECONDS", "300"), 300
+    ))
+    first_party_record_namespaces: tuple[str, ...] = field(default_factory=lambda: _parse_csv(
+        os.environ.get("ERINYS_FIRST_PARTY_RECORD_NAMESPACES", "")
+    ))
 
     distill_model: str = os.environ.get("ERINYS_DISTILL_MODEL", "gemma4:e4b")
     distill_endpoint: str = os.environ.get(

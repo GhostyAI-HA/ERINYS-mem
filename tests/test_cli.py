@@ -42,6 +42,14 @@ class FakeServer:
         self.calls.append(("prune", kwargs))
         return {"ok": True, "data": {"candidates": []}, "error": None}
 
+    def erinys_backfill(self, **kwargs: object) -> dict[str, object]:
+        self.calls.append(("backfill", kwargs))
+        return {
+            "ok": True,
+            "data": {"mode": kwargs["mode"], "plan_digest": "sha256:test"},
+            "error": None,
+        }
+
 
 class ReadonlyErrorServer(FakeServer):
     def erinys_save(self, **kwargs: object) -> dict[str, object]:
@@ -326,3 +334,107 @@ def test_write_json_serializes_datetime(capsys: CaptureFixture[str]) -> None:
     cli.write_json({"ok": True, "data": {"created_at": timestamp}, "error": None})
 
     assert "2026-06-08T00:00:00+00:00" in capsys.readouterr().out
+
+
+def backfill_line() -> dict[str, object]:
+    return {
+        "topic_key": "topic-1",
+        "title": "Historical answer",
+        "content": "Historical content",
+        "memory_role": "CLAIM",
+        "claim_status": "ACTIVE",
+        "source": {
+            "kind": "slack",
+            "namespace": "slack:workspace-1",
+            "event_key": "record-1",
+            "recorded_at": "2024-01-01T00:00:00Z",
+        },
+    }
+
+
+def test_backfill_cli_defaults_to_plan_and_injects_project(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "backfill.jsonl"
+    source.write_text(json.dumps(backfill_line()) + "\n", encoding="utf-8")
+    args = cli.parse_args([
+        "backfill", "--file", str(source), "--run-key", "run-1",
+        "--project", "Project", "--json",
+    ])
+    server = FakeServer()
+
+    result = cli.dispatch(args, server)
+
+    assert result["ok"] is True
+    assert server.calls[0][0] == "backfill"
+    payload = server.calls[0][1]
+    assert payload["mode"] == "plan"
+    assert payload["items"][0]["project"] == "Project"
+
+
+def test_backfill_cli_preserves_jsonl_project(tmp_path: Path) -> None:
+    source = tmp_path / "backfill.jsonl"
+    line = {**backfill_line(), "project": "Project"}
+    source.write_text(json.dumps(line) + "\n", encoding="utf-8")
+
+    items = cli.read_backfill_items(str(source), None)
+
+    assert items[0]["project"] == "Project"
+
+
+def test_backfill_cli_returns_timezone_error_code(tmp_path: Path) -> None:
+    source = tmp_path / "backfill.jsonl"
+    line = backfill_line()
+    source_value = line["source"]
+    assert isinstance(source_value, dict)
+    source_value["recorded_at"] = "2024-01-01T00:00:00"
+    source.write_text(json.dumps(line) + "\n", encoding="utf-8")
+    args = cli.parse_args([
+        "backfill", "--file", str(source), "--run-key", "run-1",
+        "--project", "Project", "--json",
+    ])
+
+    with pytest.raises(cli.BackfillError) as exc:
+        cli.dispatch(args, FakeServer())
+
+    assert exc.value.code == "TIMESTAMP_TIMEZONE_REQUIRED"
+
+
+def test_backfill_execute_requires_plan_digest(
+    tmp_path: Path,
+    capsys: CaptureFixture[str],
+) -> None:
+    source = tmp_path / "backfill.jsonl"
+    source.write_text(json.dumps(backfill_line()) + "\n", encoding="utf-8")
+
+    exit_code = cli.main([
+        "backfill", "--file", str(source), "--run-key", "run-1",
+        "--execute", "--json",
+    ])
+    payload = json.loads(capsys.readouterr().out)
+
+    assert exit_code == cli.EXIT_ERROR
+    assert payload["error"]["code"] == "VALIDATION"
+    assert "plan-digest" in payload["error"]["message"]
+
+
+def test_backfill_cli_rejects_project_mismatch(tmp_path: Path) -> None:
+    source = tmp_path / "backfill.jsonl"
+    line = {**backfill_line(), "project": "Other"}
+    source.write_text(json.dumps(line) + "\n", encoding="utf-8")
+    args = cli.parse_args([
+        "backfill", "--file", str(source), "--run-key", "run-1",
+        "--project", "Project",
+    ])
+
+    with pytest.raises(ValueError, match="project mismatch"):
+        cli.dispatch(args, FakeServer())
+
+
+def test_backfill_rollback_is_local_only() -> None:
+    args = cli.parse_args(["backfill-rollback", "bf_test", "--json"])
+
+    result = cli.dispatch(args, FakeServer())
+
+    assert result["ok"] is False
+    assert result["error"]["code"] == "CLI_ERROR"

@@ -2,13 +2,19 @@ from __future__ import annotations
 
 from erinys_memory._sqlite import sqlite3
 from collections.abc import Callable, Iterator
+from pathlib import Path
 
 import pytest
 
 from erinys_memory.collider import MemoryCollider
 from erinys_memory.config import ErinysConfig
 import erinys_memory.db as db_module
-from erinys_memory.db import init_db, insert_observation_with_embedding
+from erinys_memory.db import (
+    SCHEMA_PATH,
+    _register_datetime_codec,
+    init_db,
+    insert_observation_with_embedding,
+)
 import erinys_memory.distill as distill_module
 from erinys_memory.embedding import EmbeddingEngine, serialize_f32
 import erinys_memory.server as server
@@ -29,6 +35,48 @@ def db() -> Iterator[sqlite3.Connection]:
         yield connection
     finally:
         connection.close()
+
+
+@pytest.fixture
+def backfill_db(
+    tmp_path: Path,
+) -> Iterator[tuple[sqlite3.Connection, ErinysConfig]]:
+    config = ErinysConfig(
+        db_path=str(tmp_path / "backfill.db"),
+        backfill_apply_enabled=True,
+        backfill_max_items=1_000,
+        auto_distill_on_save=False,
+        first_party_record_namespaces=("slack:workspace-1",),
+    )
+    _register_datetime_codec()
+    connection = sqlite3.connect(
+        config.db_path,
+        detect_types=sqlite3.PARSE_DECLTYPES,
+    )
+    connection.row_factory = sqlite3.Row
+    connection.execute("PRAGMA foreign_keys = ON")
+    schema = SCHEMA_PATH.read_text(encoding="utf-8").replace(
+        "CREATE VIRTUAL TABLE vec_observations USING vec0(\n"
+        "  embedding float[384]\n"
+        ");",
+        "CREATE TABLE vec_observations(\n"
+        "  rowid INTEGER PRIMARY KEY,\n"
+        "  embedding BLOB NOT NULL\n"
+        ");",
+    )
+    connection.executescript(schema)
+    try:
+        yield connection, config
+    finally:
+        connection.close()
+
+
+@pytest.fixture
+def fake_embed_batch() -> Callable[[list[str]], list[list[float]]]:
+    def embed(texts: list[str]) -> list[list[float]]:
+        return [[0.01] * 384 for _ in texts]
+
+    return embed
 
 
 # Inline schema for the lightweight `mem_db` fixture: no vec0 dependency, FTS5

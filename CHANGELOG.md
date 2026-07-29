@@ -2,6 +2,66 @@
 
 ## [Unreleased]
 
+## [0.6.0] — 2026-07-29
+
+### Added — timestamp-aware historical backfill
+
+- Added `erinys_backfill` and the JSON CLI `erinys backfill` with a mandatory
+  plan/apply split. Apply is disabled by default, requires
+  `ERINYS_BACKFILL_ENABLED=1`, and accepts only the exact digest returned by the
+  reviewed plan.
+- Historical `source.recorded_at`, valid time, and evidence-backed `USED`
+  events are stored separately. Their projection sets `created_at`,
+  `valid_from` / `valid_until`, `access_count`, and `last_accessed` without
+  pretending an old Slack or archive record was created today.
+- Schema v3 adds `backfill_runs`, an idempotent observation-event ledger, lazy
+  legacy baselines, and run membership. Migration from v1/v2 is automatic.
+- Apply embeds all redacted content before the first write, uses bounded chunk
+  transactions, resumes partial runs, and creates a non-overwriting SQLite
+  backup before mutation.
+- Added local CLI-only `backfill-rollback`. It defaults to dry-run, restores
+  matched temporal projections, and refuses unsafe deletion when later events,
+  external edges, derived rows, or collisions depend on a created observation.
+- Added `scripts/backfill_slack.py` to normalize reviewed Slack JSONL, hash or
+  HMAC source identifiers, and redact secrets, email addresses, and mentions
+  before embedding.
+
+### Added — Admission / Activation Sentry
+
+- Every write path now stamps server-controlled `metadata.memory_safety` with
+  source class, allowed uses, and admission verdict.
+- `erinys_get`, `erinys_search`, `erinys_recall`, and `erinys_context` screen
+  each result for its requested `intended_use`.
+- Retrieved memory is never action authority by recall alone. External or
+  unknown content with risky instruction patterns is blocked and replaced by a
+  hash-backed audit placeholder; only server-recorded policy may authorize
+  directive use.
+- Added `FIRST_PARTY_RECORD`: allowlisted internal archives may support context
+  and evidence, but cannot grant action authority.
+
+### Added — Current Valid Claim Evidence Path v0 + GraphRAG read-only shadow
+
+- Added strict Pydantic contracts that separate claim status, valid time,
+  recorded time, scope, provenance, and edge verification.
+- `ERINYS_CLAIM_SHADOW_MODE=audit` evaluates live RRF candidates through a
+  bounded, verified-edge, maximum two-hop evidence path. It records
+  content-free comparison receipts but does not change returned IDs, order, or
+  scores. The default remains `off`.
+- The shadow runs only after v0.5.1 access-policy filtering, so unauthorized
+  candidates are neither returned nor included in shadow receipts.
+- Added fixed fixtures, report tooling, and a copy-DB soak runner that refuses
+  the production database path.
+
+### Changed
+
+- Added typed graph relations for evidence and outcome lineage:
+  `supports`, `narrows`, `derived_from`, `applicable_to`, `used_in`,
+  `verified_by`, and `resulted_in`.
+- Retention-significant historical, legal, and high-risk observations are
+  protected from decay pruning.
+- Existing v0.5.1 access policy, answerability signal, and temporal date
+  grounding remain active and are covered by the combined regression suite.
+
 ## [0.5.1] — 2026-07-02
 
 ### Added — memory access policy / security gate (P0-7, opt-in, zero-LLM)

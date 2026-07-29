@@ -72,6 +72,31 @@ erinys search "auth cookie security" --project demo
 
 Retrieval runs in ~7–10 ms against a single local SQLite file, with zero LLM calls.
 
+## New in v0.6.0
+
+**Historical backfill that preserves time.** `erinys backfill` imports reviewed
+Slack, email, chat, Web, or archive records with their original timestamps.
+Recorded time, valid time, and historical use events stay separate, so decay
+and reinforcement begin from what actually happened rather than the import
+date. Plan/apply digests, event-ledger idempotency, pre-write embedding,
+automatic backups, and a guarded rollback path make direct SQLite injection
+unnecessary. Apply is disabled by default. See
+[Timestamp-aware backfill](docs/BACKFILL.md).
+
+**Admission / Activation Sentry.** Provenance says where memory came from;
+Sentry decides what it may be used for. Every write receives a server-controlled
+trust classification, while reads declare an `intended_use`. Recalled text does
+not become an instruction merely because it was retrieved, and risky directives
+inside untrusted records are blocked before content reaches the caller. See
+[Memory safety](docs/MEMORY_SAFETY.md).
+
+**Current Valid Claim Evidence Path v0 + GraphRAG read-only shadow.** A strict
+claim contract separates valid time, recorded time, scope, status, provenance,
+and edge verification. An opt-in shadow evaluates the existing RRF candidates
+over bounded verified paths without changing the production response. It is
+off by default and remains a measurement path, not the answer path. See the
+[rollout contract](CURRENT_VALID_CLAIM_ROLLOUT.md).
+
 ## Benchmarks
 
 These are **retrieval recall** numbers ("is the correct session in the top-K?"), not end-to-end QA accuracy — QA and answerability harnesses shipped in v0.5.1, real runs pending ([LIMITATIONS.md](docs/LIMITATIONS.md)). All results use the same mode (`enhanced_v2_boost`) with **zero LLM calls** in the retrieval pipeline, reproduced on current dependencies (2026-07).
@@ -200,12 +225,12 @@ erinys distill 123 --level meta --json
 - Usage errors also emit JSON (`error.code: "USAGE"`, exit code 2).
 - Module form: `python -m erinys_memory.cli <command>`.
 
-## MCP tool surface (28 tools)
+## MCP tool surface (29 tools)
 
 | Tier | Tools | What | LLM |
 |:--|:--|:--|:--|
 | **Basic** | 17 | save / search / recall / sessions — the stable core | ❌ none |
-| **Governance** | 7 | lineage, supersede, timeline, conflict check, verified forgetting | ❌ none |
+| **Governance** | 8 | lineage, supersede, timeline, backfill, conflict check, verified forgetting | ❌ none |
 | **Experimental** | 4 | distill, dream, collide, eval — research features | ⚠️ distill / dream / collide call an LLM |
 
 Every tool returns the same `{ok, data, error}` envelope. Full per-tool reference → [docs/TOOLS.md](docs/TOOLS.md)
@@ -219,17 +244,24 @@ Every tool returns the same `{ok, data, error}` envelope. Full per-tool referenc
 | `ERINYS_AUTO_DISTILL` | `1` | Auto-distill on save (set `0` to disable) |
 | `ERINYS_DISTILL_MODEL` | `gemma4:e4b` | Local Ollama model for distillation |
 | `ERINYS_DISTILL_ENDPOINT` | `http://localhost:11434/api/generate` | Ollama generate endpoint |
+| `ERINYS_BACKFILL_ENABLED` | `0` | Permit a reviewed backfill plan to be applied |
+| `ERINYS_BACKFILL_MAX_ITEMS` | `100` | Local CLI item cap per request; MCP remains capped at 100 |
+| `ERINYS_BACKFILL_CHUNK_SIZE` | `100` | Maximum observations per apply transaction |
+| `ERINYS_FIRST_PARTY_RECORD_NAMESPACES` | empty | Comma-separated namespaces allowed to act as first-party evidence |
+| `ERINYS_CLAIM_SHADOW_MODE` | `off` | Set `audit` to record non-intervening claim-shadow receipts |
 
 ## Architecture
 
 ```
 ┌─────────────────────────────┐
-│       FastMCP Server        │  28 tools, uniform {ok, data, error} envelope
+│       FastMCP Server        │  29 tools, uniform {ok, data, error} envelope
 ├─────────────────────────────┤
 │ search.py     │ graph.py    │  RRF hybrid search │ typed edges
 │ decay.py      │ session.py  │  Ebbinghaus decay  │ lifecycle
 │ temporal.py   │ collider.py │  versioning        │ dream cycle
 │ distill.py    │ policy.py   │  3-level distill   │ access policy
+│ backfill.py   │ sentry.py   │  event ledger      │ use control
+│ claim_shadow  │ policy.py   │  read-only graph   │ access policy
 │ provenance.py │ db.py       │  lineage stamps    │ SQLite + vec
 ├─────────────────────────────┤
 │ embedding.py                │  fastembed (multilingual-MiniLM, 384d)
