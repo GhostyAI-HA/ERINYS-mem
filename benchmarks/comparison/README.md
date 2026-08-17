@@ -1,52 +1,86 @@
-# Baseline Comparison Harness
+# Comparison harness (W1 + W2)
 
-This directory contains deterministic baselines for comparing ERINYS against
-trivial retrieval systems under the same benchmark adapters.
+このディレクトリは、既存ベンチマークのローダ／採点を再利用した比較用ハーネスです。生成物は `results/` 以下に限定します。`FINAL_REPORT.md` と [W1_RESULTS_TABLE.md](W1_RESULTS_TABLE.md) は既存検証結果の入口です。
 
-## Fairness Contract
+## `--limit` と `--top-k`
 
-- Inputs come from the existing benchmark scripts:
-  - LoCoMo uses `../locomo_bench.py` for dataset loading, session text
-    conversion, evidence-to-session mapping, and recall scoring.
-  - ConvoMem uses `../convomem_bench.py` for cached evidence loading and, via a
-    temporary injected search mode, its existing `retrieve_for_item` scorer.
-- The RAG baseline uses the shared `erinys_memory.db.embedding_engine` used by
-  the existing benchmark scripts. The task requested `BAAI/bge-small-en-v1.5`;
-  on this checkout that exact fastembed cache was not present, so the harness
-  keeps the repo's active shared engine model and records it in each summary.
-- BM25 is pure lexical Okapi BM25. It does not use SQLite FTS5, vector search,
-  boosting, RRF, or any new package dependency.
-- No LLM calls are made by either baseline. `retrieval_llm_calls` is always `0`.
-- Runs are deterministic: documents keep loader order and score ties break by
-  document id or original document index.
-- Results are written only under `benchmarks/comparison/results/`; existing
-  ERINYS summaries in `../results/` are read by `make_table.py` but never
-  modified.
+- `locomo`: `--limit N` は全体の問題数の上限です。`--limit 5` は5問です。
+- `convomem`: `--limit N` はカテゴリごとの件数です。現キャッシュの5カテゴリでは `--limit 2` は合計10問になります。カテゴリごとの欠損は自動補完せず、キャッシュにあるカテゴリだけを使用します。
+- `longmemeval`: `--limit N` はraw LongMemEval-Sの全体上限です。省略時は `/tmp/longmemeval-data/longmemeval_s.json` の500問です。
+- `--top-k K` は検索結果と `r_at_k` のKです。各summary JSONと `comparison.csv` の `top_k` に実行値を記録します。
 
-## Ingestion Granularity
+`comparison.csv` はW1の旧10列を、summary JSONの `top_k` から再構築して11列へ移行します。対応するsummaryが一意に見つからない行は `unknown` です。
 
-- LoCoMo uses one chunk per conversation session, matching the gold evidence
-  granularity scored by the existing LoCoMo harness.
-- ConvoMem uses one chunk per message because the existing ConvoMem scorer checks
-  whether gold evidence message text appears in retrieved message text.
-- ERINYS benchmark scripts may add synthetic preference or context-window
-  observations. These baselines intentionally do not use those augmentations.
+## データセットと既知の問題
 
-## Commands
+- LoCoMo: `/tmp/locomo-data/locomo10.json`
+- ConvoMem: `/tmp/convomem_cache`（既存 `convomem_bench.py` のキャッシュローダ）
+- LongMemEval-S raw: `/tmp/longmemeval-data/longmemeval_s.json`（500問、HF `xiaowu0162/longmemeval`）
+
+`benchmarks/longmemeval_bench.py` の既定値および `BENCHMARKS.md` の再現コマンドが参照する `/tmp/longmemeval-data/longmemeval_s_cleaned.json` は、このリポジトリにも `download_datasets.sh` にも存在しません。W2ではraw版を用い、既存ローダのデータ修正（`eac54add` のラベル補正を含む）を適用します。`BENCHMARKS.md` のcleaned版の既存値とは別の測定として扱い、突合しません。
+
+## 再現コマンド
+
+### W1の8本
 
 ```bash
 .venv/bin/python benchmarks/comparison/run_comparison.py --bench convomem --system rag --limit 5
 .venv/bin/python benchmarks/comparison/run_comparison.py --bench convomem --system bm25 --limit 5
 .venv/bin/python benchmarks/comparison/run_comparison.py --bench locomo --system rag --limit 5
 .venv/bin/python benchmarks/comparison/run_comparison.py --bench locomo --system bm25 --limit 5
-.venv/bin/python benchmarks/comparison/make_table.py
+.venv/bin/python benchmarks/comparison/run_comparison.py --bench convomem --system rag
+.venv/bin/python benchmarks/comparison/run_comparison.py --bench convomem --system bm25
+.venv/bin/python benchmarks/comparison/run_comparison.py --bench locomo --system rag
+.venv/bin/python benchmarks/comparison/run_comparison.py --bench locomo --system bm25
 ```
 
-To capture the Python environment used for paper numbers:
+W1のスモーク4本は2分以内を目安とします。ConvoMem/RAGのフル計測は大きいため、時間とキャッシュを確認してから実行してください。
+
+### W2 LongMemEval-S baseline 4本
 
 ```bash
-.venv/bin/python -m pip freeze > benchmarks/comparison/results/pip-freeze.txt
+.venv/bin/python benchmarks/comparison/run_comparison.py --bench longmemeval --system rag --top-k 5
+.venv/bin/python benchmarks/comparison/run_comparison.py --bench longmemeval --system rag --top-k 10
+.venv/bin/python benchmarks/comparison/run_comparison.py --bench longmemeval --system bm25 --top-k 5
+.venv/bin/python benchmarks/comparison/run_comparison.py --bench longmemeval --system bm25 --top-k 10
 ```
 
-`make_table.py` is the only supported way to render paper tables from
-`results/comparison.csv` and the checked-in ERINYS summary JSON files.
+4本とも `n=500` のraw版フル計測です。RAGはW1と同じ共有embedding engine、BM25は依存なしのOkapi実装です。
+
+### W2 ERINYS raw再測定（比較表へは混在させない）
+
+```bash
+.venv/bin/python benchmarks/longmemeval_bench.py /tmp/longmemeval-data/longmemeval_s.json --mode enhanced_v2_boost --top-k 5 --output benchmarks/comparison/results/longmemeval_raw_erinys/top_k_5
+.venv/bin/python benchmarks/longmemeval_bench.py /tmp/longmemeval-data/longmemeval_s.json --mode enhanced_v2_boost --top-k 10 --output benchmarks/comparison/results/longmemeval_raw_erinys/top_k_10
+```
+
+出力ディレクトリ名に `raw_erinys` を含め、cleaned版の既存 `benchmarks/results/` と区別します。
+
+### W2 Mem0（コストゲート付きスモークのみ）
+
+```bash
+.venv/bin/python benchmarks/comparison/run_mem0_smoke.py --bench locomo --limit 5
+.venv/bin/python benchmarks/comparison/run_mem0_smoke.py --bench convomem --limit 2
+.venv/bin/python benchmarks/comparison/mem0_cost_estimate.py
+```
+
+Mem0の実行可能範囲はこの2つのlimitに固定されています。既定LLMはmem0ai 2.0.18のOSS `openai` / `gpt-5-mini`、vector storeはローカルQdrantです。必要なLLM環境変数が無い場合はMemoryを初期化せず `SKIP` summaryだけを書きます。キーをログやファイルへ出力しません。フル計測は別パックかつ明示承認まで禁止です。
+
+`MEM0_COST_ESTIMATE.md` の件数・文書数・トークン概算はsummaryと既存ローダから生成します。USDは、現在のprovider価格を確認したうえで `MEM0_INPUT_USD_PER_1M` と `MEM0_OUTPUT_USD_PER_1M` を設定した場合だけ算出対象にします。
+
+### CSV/table migration and checks
+
+```bash
+.venv/bin/python benchmarks/comparison/rebuild_comparison_csv.py
+.venv/bin/python benchmarks/comparison/make_table.py
+.venv/bin/python -m unittest benchmarks/comparison/test_w2.py
+```
+
+## 生成物の命名規則
+
+- 比較ベースライン: `results_{system}_{benchmark}_YYYYMMDD_HHMMSS.jsonl` と `summary_{system}_{benchmark}_YYYYMMDD_HHMMSS.json`
+- Mem0 smoke: `results_mem0_{benchmark}_...` と `summary_mem0_{benchmark}_...`
+- ERINYS raw: `results/longmemeval_raw_erinys/top_k_{5,10}/` 下の既存 `longmemeval_bench.py` 命名
+- 比較表: `results/comparison.csv`
+
+数値は手入力せず、各実行のsummary JSONおよび `make_table.py` の出力から取得してください。

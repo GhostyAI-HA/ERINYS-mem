@@ -20,12 +20,14 @@ RESULTS_DIR = Path(__file__).resolve().parent / "results"
 COMPARISON_CSV = RESULTS_DIR / "comparison.csv"
 LOCOMO_DATA_PATH = Path("/tmp/locomo-data/locomo10.json")
 CONVOMEM_CACHE_DIR = Path("/tmp/convomem_cache")
+LONGMEMEVAL_DATA_PATH = Path("/tmp/longmemeval-data/longmemeval_s.json")
 REQUESTED_RAG_MODEL = "BAAI/bge-small-en-v1.5"
 CONVOMEM_EVAL_MODE = "_comparison_fixed_results"
 CSV_FIELDS = (
     "system",
     "benchmark",
     "mode",
+    "top_k",
     "n",
     "r_at_k",
     "perfect_pct",
@@ -54,6 +56,7 @@ def _load_module(name: str, path: Path) -> object:
 
 locomo = _load_module("comparison_locomo_bench", BENCHMARK_DIR / "locomo_bench.py")
 convomem = _load_module("comparison_convomem_bench", BENCHMARK_DIR / "convomem_bench.py")
+import longmemeval_loader
 
 
 @dataclass(frozen=True)
@@ -142,6 +145,8 @@ def load_cases(benchmark: str, limit: int | None) -> list[QueryCase]:
         return load_locomo_cases(limit)
     if benchmark == "convomem":
         return load_convomem_cases(limit)
+    if benchmark == "longmemeval":
+        return load_longmemeval_cases(limit)
     raise ValueError(f"Unsupported benchmark: {benchmark}")
 
 
@@ -154,6 +159,36 @@ def load_locomo_cases(limit: int | None) -> list[QueryCase]:
         if limit is not None and len(cases) >= limit:
             break
     return cases[:limit] if limit is not None else cases
+
+
+def load_longmemeval_cases(limit: int | None) -> list[QueryCase]:
+    """Load raw LongMemEval-S cases with the existing gold-session labels."""
+    data = longmemeval_loader.load_raw_dataset(LONGMEMEVAL_DATA_PATH, limit)
+    return [_longmemeval_case(index, item) for index, item in enumerate(data)]
+
+
+def _longmemeval_case(index: int, item: dict[str, object]) -> QueryCase:
+    session_ids = [str(value) for value in item["haystack_session_ids"]]
+    sessions = item["haystack_sessions"]
+    documents = tuple(
+        Document(session_id, longmemeval_loader.session_to_text(session), {
+            "question_id": str(item["question_id"]),
+            "session_id": session_id,
+        })
+        for session_id, session in zip(session_ids, sessions)
+    )
+    gold_ids = frozenset(str(value) for value in item["answer_session_ids"])
+    return QueryCase(
+        case_id=f"longmemeval:{index}:{item['question_id']}",
+        benchmark="longmemeval",
+        corpus_key=f"longmemeval:{index}",
+        question=str(item["question"]),
+        answer=str(item.get("answer", "")),
+        category=str(item.get("question_type", "unknown")),
+        documents=documents,
+        gold_ids=gold_ids,
+        raw_item=item,
+    )
 
 
 def _locomo_sample_cases(
@@ -325,6 +360,8 @@ def evaluate_case(
     """Evaluate a baseline result through benchmark-specific code."""
     if case.benchmark == "locomo":
         return _evaluate_locomo(case, ranked, top_k)
+    if case.benchmark == "longmemeval":
+        return _evaluate_longmemeval(case, ranked, top_k)
     return _evaluate_convomem(case, ranked, top_k)
 
 
@@ -336,6 +373,18 @@ def _evaluate_locomo(
     retrieved = [item.document.doc_id for item in ranked]
     recall = locomo.compute_recall_at_k(retrieved, set(case.gold_ids), top_k)
     return recall, {"gold_ids": sorted(case.gold_ids), "retrieved_ids": retrieved}
+
+
+def _evaluate_longmemeval(
+    case: QueryCase,
+    ranked: Sequence[RankedDocument],
+    top_k: int,
+) -> tuple[float, dict[str, object]]:
+    """Evaluate raw LongMemEval-S retrieval at the requested k."""
+    retrieved = [item.document.doc_id for item in ranked]
+    recall = longmemeval_loader.compute_recall_at_k(retrieved, list(case.gold_ids), top_k)
+    details = {"gold_ids": sorted(case.gold_ids), "retrieved_ids": retrieved}
+    return recall, details
 
 
 def _evaluate_convomem(
@@ -530,7 +579,80 @@ def _write_summary(path: Path, summary: object) -> None:
         json.dump(summary, handle, indent=2, ensure_ascii=False)
 
 
+def rebuild_comparison_csv() -> tuple[int, int]:
+    """Add top_k to legacy rows using matching summary JSON values."""
+    fields, rows = _read_csv_rows()
+    if "top_k" in fields:
+        return len(rows), sum(row.get("top_k") == "unknown" for row in rows)
+    candidates = _summary_candidates()
+    restored = [_restore_top_k(row, candidates) for row in rows]
+    _write_csv_rows(restored)
+    unknown = sum(row.get("top_k") == "unknown" for row in restored)
+    return len(restored), unknown
+
+
+def _read_csv_rows() -> tuple[list[str], list[dict[str, str]]]:
+    if not COMPARISON_CSV.exists():
+        return [], []
+    with COMPARISON_CSV.open(encoding="utf-8", newline="") as handle:
+        reader = csv.DictReader(handle)
+        return list(reader.fieldnames or []), list(reader)
+
+
+def _summary_candidates() -> list[tuple[dict[str, object], str]]:
+    candidates: list[tuple[dict[str, object], str]] = []
+    for path in sorted(RESULTS_DIR.glob("summary_*.json")):
+        try:
+            summary = json.loads(path.read_text(encoding="utf-8"))
+            row = _csv_row(_dict(summary))
+        except (OSError, json.JSONDecodeError, KeyError, TypeError):
+            continue
+        top_k = str(summary.get("top_k", "unknown"))
+        candidates.append((row, top_k))
+    return candidates
+
+
+def _restore_top_k(
+    row: dict[str, str],
+    candidates: Sequence[tuple[dict[str, object], str]],
+) -> dict[str, str]:
+    restored = dict(row)
+    matches = [top_k for candidate, top_k in candidates if _same_csv_row(row, candidate)]
+    unique = sorted(set(matches))
+    restored["top_k"] = unique[0] if len(unique) == 1 else "unknown"
+    return restored
+
+
+def _same_csv_row(left: dict[str, str], right: dict[str, object]) -> bool:
+    fields = [field for field in CSV_FIELDS if field != "top_k"]
+    return all(_same_csv_value(left.get(field, ""), right.get(field, "")) for field in fields)
+
+
+def _same_csv_value(left: object, right: object) -> bool:
+    if str(left) == str(right):
+        return True
+    try:
+        return math.isclose(float(left), float(right), rel_tol=1e-9, abs_tol=1e-9)
+    except (TypeError, ValueError):
+        return False
+
+
+def _write_csv_rows(rows: Sequence[dict[str, object]]) -> None:
+    COMPARISON_CSV.parent.mkdir(parents=True, exist_ok=True)
+    with COMPARISON_CSV.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=CSV_FIELDS)
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def _ensure_csv_schema() -> None:
+    fields, _ = _read_csv_rows()
+    if fields and "top_k" not in fields:
+        rebuild_comparison_csv()
+
+
 def _append_csv(summary: object) -> None:
+    _ensure_csv_schema()
     row = _csv_row(_dict(summary))
     needs_header = not COMPARISON_CSV.exists() or COMPARISON_CSV.stat().st_size == 0
     with COMPARISON_CSV.open("a", encoding="utf-8", newline="") as handle:
@@ -547,6 +669,7 @@ def _csv_row(summary: dict[str, object]) -> dict[str, object]:
         "system": summary["system"],
         "benchmark": summary["benchmark"],
         "mode": summary["mode"],
+        "top_k": summary.get("top_k", "unknown"),
         "n": summary["n"],
         "r_at_k": overall["r_at_k"],
         "perfect_pct": overall["perfect_pct"],

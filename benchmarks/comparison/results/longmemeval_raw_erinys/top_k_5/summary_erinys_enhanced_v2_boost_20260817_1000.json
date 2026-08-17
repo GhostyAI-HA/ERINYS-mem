@@ -1,0 +1,79 @@
+{
+  "mode": "enhanced_v2_boost",
+  "top_k": 5,
+  "total_questions": 500,
+  "overall": {
+    "R@5": 99.4,
+    "R@10": 100.0,
+    "NDCG@5": 0.9372266831100818,
+    "NDCG@10": 0.9484902938402797
+  },
+  "per_category": {
+    "knowledge-update": {
+      "count": 78,
+      "R@5": 100.0,
+      "R@10": 100.0,
+      "NDCG@5": 0.9822198358046853,
+      "NDCG@10": 0.9848401229532556
+    },
+    "multi-session": {
+      "count": 133,
+      "R@5": 99.24812030075188,
+      "R@10": 100.0,
+      "NDCG@5": 0.9266521010047857,
+      "NDCG@10": 0.9418147058636303
+    },
+    "single-session-assistant": {
+      "count": 56,
+      "R@5": 98.21428571428571,
+      "R@10": 100.0,
+      "NDCG@5": 0.9666237455994903,
+      "NDCG@10": 0.9725761265518713
+    },
+    "single-session-preference": {
+      "count": 30,
+      "R@5": 100.0,
+      "R@10": 100.0,
+      "NDCG@5": 0.8822080559895131,
+      "NDCG@10": 0.8822080559895131
+    },
+    "single-session-user": {
+      "count": 70,
+      "R@5": 100.0,
+      "R@10": 100.0,
+      "NDCG@5": 0.9770398465816338,
+      "NDCG@10": 0.9770398465816338
+    },
+    "temporal-reasoning": {
+      "count": 133,
+      "R@5": 99.24812030075188,
+      "R@10": 100.0,
+      "NDCG@5": 0.9004925130426146,
+      "NDCG@10": 0.9236313340046507
+    }
+  },
+  "timing": {
+    "embed_total_s": 10.9,
+    "search_total_s": 7.1,
+    "avg_embed_per_q_s": 0.02,
+    "avg_search_per_q_ms": 14.2
+  },
+  "misses_at_5": [
+    {
+      "question_id": "60bf93ed_abs",
+      "question_type": "multi-session",
+      "question": "How many days did it take for my iPad case to arrive after I bought it?"
+    },
+    {
+      "question_id": "gpt4_468eb064",
+      "question_type": "temporal-reasoning",
+      "question": "Who did I meet with during the lunch last Tuesday?"
+    },
+    {
+      "question_id": "18dcd5a5",
+      "question_type": "single-session-assistant",
+      "question": "I'm going back to our previous chat about the Lost Temple of the Djinn one-shot. Can you remind me how many mummies the party will face in the temple?"
+    }
+  ],
+  "total_time_s": 19.3
+}

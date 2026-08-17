@@ -28,7 +28,11 @@ def _system_config(system: str) -> tuple[str, common.IndexFactory]:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run ERINYS baseline comparison")
-    parser.add_argument("--bench", choices=["locomo", "convomem"], required=True)
+    parser.add_argument(
+        "--bench",
+        choices=["locomo", "convomem", "longmemeval"],
+        required=True,
+    )
     parser.add_argument("--system", choices=["rag", "bm25"], required=True)
     parser.add_argument("--limit", type=_positive_int, default=None)
     parser.add_argument("--top-k", type=_positive_int, default=10)

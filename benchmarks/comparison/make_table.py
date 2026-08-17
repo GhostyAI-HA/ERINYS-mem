@@ -16,7 +16,12 @@ def _read_comparison_rows() -> list[dict[str, str]]:
     if not common.COMPARISON_CSV.exists():
         return []
     with common.COMPARISON_CSV.open(encoding="utf-8", newline="") as handle:
-        return list(csv.DictReader(handle))
+        reader = csv.DictReader(handle)
+        rows = list(reader)
+        if "top_k" not in (reader.fieldnames or []):
+            common.rebuild_comparison_csv()
+            return _read_comparison_rows()
+        return rows
 
 
 def _latest_erinys_rows() -> list[dict[str, str]]:
@@ -59,6 +64,7 @@ def _erinys_row(summary: dict[str, object]) -> dict[str, str]:
         "system": "erinys",
         "benchmark": benchmark,
         "mode": str(summary["mode"]),
+        "top_k": str(summary.get("top_k", "unknown")),
         "n": _erinys_n(summary),
         "r_at_k": _erinys_recall(overall),
         "perfect_pct": _erinys_perfect(overall),
@@ -112,15 +118,15 @@ def _display(value: str) -> str:
 
 
 def render_markdown(rows: list[dict[str, str]]) -> str:
-    header = "| System | Benchmark | Mode | N | R@k % | Perfect % | p50 ms | p95 ms | Ingest s | LLM calls |"
-    divider = "|:--|:--|:--|--:|--:|--:|--:|--:|--:|--:|"
+    header = "| System | Benchmark | Mode | Top-k | N | R@k % | Perfect % | p50 ms | p95 ms | Ingest s | LLM calls |"
+    divider = "|:--|:--|:--|--:|--:|--:|--:|--:|--:|--:|--:|"
     body = [_markdown_row(row) for row in rows]
     return "\n".join([header, divider, *body])
 
 
 def _markdown_row(row: dict[str, str]) -> str:
     cells = [
-        row["system"], row["benchmark"], row["mode"], row["n"],
+        row["system"], row["benchmark"], row["mode"], row["top_k"], row["n"],
         row["r_at_k"], row["perfect_pct"], row["latency_p50_ms"],
         row["latency_p95_ms"], row["ingest_wall_s"],
         row["retrieval_llm_calls"],
@@ -130,9 +136,9 @@ def _markdown_row(row: dict[str, str]) -> str:
 
 def render_latex(rows: list[dict[str, str]]) -> str:
     lines = [
-        "\\begin{tabular}{lllrrrrrrr}",
+        "\\begin{tabular}{llllrrrrrrr}",
         "\\hline",
-        "System & Benchmark & Mode & N & R@k & Perfect & p50 & p95 & Ingest & LLM \\\\",
+        "System & Benchmark & Mode & Top-k & N & R@k & Perfect & p50 & p95 & Ingest & LLM \\\\",
         "\\hline",
     ]
     lines.extend(_latex_row(row) for row in rows)
@@ -142,7 +148,7 @@ def render_latex(rows: list[dict[str, str]]) -> str:
 
 def _latex_row(row: dict[str, str]) -> str:
     cells = [
-        row["system"], row["benchmark"], row["mode"], row["n"],
+        row["system"], row["benchmark"], row["mode"], row["top_k"], row["n"],
         row["r_at_k"], row["perfect_pct"], row["latency_p50_ms"],
         row["latency_p95_ms"], row["ingest_wall_s"],
         row["retrieval_llm_calls"],
