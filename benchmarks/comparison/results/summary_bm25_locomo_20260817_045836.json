@@ -1,0 +1,22 @@
+{
+  "system": "bm25",
+  "benchmark": "locomo",
+  "mode": "okapi_bm25_k1_1.5_b_0.75",
+  "top_k": 10,
+  "n": 1982,
+  "overall": {
+    "r_at_k": 94.702,
+    "perfect_pct": 94.702,
+    "zero_pct": 5.298
+  },
+  "latency": {
+    "p50_ms": 0.046,
+    "p95_ms": 0.07
+  },
+  "ingest_wall_s": 0.034,
+  "scoring_wall_s": 0.002,
+  "retrieval_llm_calls": 0,
+  "embedding_model": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+  "requested_rag_model": "BAAI/bge-small-en-v1.5",
+  "generated_at": "2026-08-17T04:58:36"
+}

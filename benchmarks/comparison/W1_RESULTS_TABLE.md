@@ -1,0 +1,51 @@
+| System | Benchmark | Mode | N | R@k % | Perfect % | p50 ms | p95 ms | Ingest s | LLM calls |
+|:--|:--|:--|--:|--:|--:|--:|--:|--:|--:|
+| bm25 | convomem | okapi_bm25_k1_1.5_b_0.75 | 5 | 100.0 | 100.0 | 0.044 | 0.148 | 0.001 | 0 |
+| bm25 | convomem | okapi_bm25_k1_1.5_b_0.75 | 5 | 100.0 | 100.0 | 0.043 | 0.142 | 0.001 | 0 |
+| bm25 | convomem | okapi_bm25_k1_1.5_b_0.75 | 36860 | 87.076 | 86.986 | 0.092 | 0.192 | 12.221 | 0 |
+| bm25 | convomem | okapi_bm25_k1_1.5_b_0.75 | 50 | 96.0 | 96.0 | 0.09 | 0.198 | 0.017 | 0 |
+| bm25 | convomem | okapi_bm25_k1_1.5_b_0.75 | 50 | 98.0 | 98.0 | 0.086 | 0.184 | 0.015 | 0 |
+| bm25 | convomem | okapi_bm25_k1_1.5_b_0.75 | 250 | 72.0 | 72.0 | 0.091 | 0.181 | 0.08 | 0 |
+| bm25 | convomem | okapi_bm25_k1_1.5_b_0.75 | 250 | 85.933 | 85.6 | 0.091 | 0.184 | 0.08 | 0 |
+| erinys | convomem | enhanced_v2_boost | 250 | 97.600 | 97.200 | - | - | - | 0 |
+| rag | convomem | session_chunks_cosine_shared_embedding_engine | 5 | 100.0 | 100.0 | 4.654 | 5.744 | 0.894 | 0 |
+| rag | convomem | session_chunks_cosine_shared_embedding_engine | 36860 | 90.85 | 90.743 | 3.656 | 7.264 | 4675.82 | 0 |
+| rag | convomem | session_chunks_cosine_shared_embedding_engine | 50 | 96.0 | 96.0 | 3.591 | 5.927 | 5.813 | 0 |
+| rag | convomem | session_chunks_cosine_shared_embedding_engine | 50 | 96.0 | 96.0 | 3.529 | 6.591 | 5.849 | 0 |
+| rag | convomem | session_chunks_cosine_shared_embedding_engine | 250 | 81.4 | 80.4 | 3.569 | 6.104 | 34.896 | 0 |
+| rag | convomem | session_chunks_cosine_shared_embedding_engine | 250 | 89.533 | 88.8 | 3.446 | 5.854 | 30.495 | 0 |
+| bm25 | locomo | okapi_bm25_k1_1.5_b_0.75 | 5 | 60.0 | 60.0 | 0.029 | 0.066 | 0.003 | 0 |
+| bm25 | locomo | okapi_bm25_k1_1.5_b_0.75 | 1982 | 94.702 | 94.702 | 0.046 | 0.07 | 0.034 | 0 |
+| bm25 | locomo | okapi_bm25_k1_1.5_b_0.75 | 1982 | 87.689 | 87.689 | 0.046 | 0.072 | 0.034 | 0 |
+| erinys | locomo | enhanced_v2_boost | 1982 | 98.083 | 98.083 | 7.300 | - | 11.000 | 0 |
+| rag | locomo | session_chunks_cosine_shared_embedding_engine | 5 | 80.0 | 80.0 | 2.19 | 2.94 | 0.58 | 0 |
+| rag | locomo | session_chunks_cosine_shared_embedding_engine | 1982 | 58.274 | 58.274 | 2.271 | 2.577 | 1.862 | 0 |
+| rag | locomo | session_chunks_cosine_shared_embedding_engine | 1982 | 40.868 | 40.868 | 2.271 | 2.604 | 1.77 | 0 |
+
+\begin{tabular}{lllrrrrrrr}
+\hline
+System & Benchmark & Mode & N & R@k & Perfect & p50 & p95 & Ingest & LLM \\
+\hline
+bm25 & convomem & okapi\_bm25\_k1\_1.5\_b\_0.75 & 5 & 100.0 & 100.0 & 0.044 & 0.148 & 0.001 & 0 \\
+bm25 & convomem & okapi\_bm25\_k1\_1.5\_b\_0.75 & 5 & 100.0 & 100.0 & 0.043 & 0.142 & 0.001 & 0 \\
+bm25 & convomem & okapi\_bm25\_k1\_1.5\_b\_0.75 & 36860 & 87.076 & 86.986 & 0.092 & 0.192 & 12.221 & 0 \\
+bm25 & convomem & okapi\_bm25\_k1\_1.5\_b\_0.75 & 50 & 96.0 & 96.0 & 0.09 & 0.198 & 0.017 & 0 \\
+bm25 & convomem & okapi\_bm25\_k1\_1.5\_b\_0.75 & 50 & 98.0 & 98.0 & 0.086 & 0.184 & 0.015 & 0 \\
+bm25 & convomem & okapi\_bm25\_k1\_1.5\_b\_0.75 & 250 & 72.0 & 72.0 & 0.091 & 0.181 & 0.08 & 0 \\
+bm25 & convomem & okapi\_bm25\_k1\_1.5\_b\_0.75 & 250 & 85.933 & 85.6 & 0.091 & 0.184 & 0.08 & 0 \\
+erinys & convomem & enhanced\_v2\_boost & 250 & 97.600 & 97.200 & - & - & - & 0 \\
+rag & convomem & session\_chunks\_cosine\_shared\_embedding\_engine & 5 & 100.0 & 100.0 & 4.654 & 5.744 & 0.894 & 0 \\
+rag & convomem & session\_chunks\_cosine\_shared\_embedding\_engine & 36860 & 90.85 & 90.743 & 3.656 & 7.264 & 4675.82 & 0 \\
+rag & convomem & session\_chunks\_cosine\_shared\_embedding\_engine & 50 & 96.0 & 96.0 & 3.591 & 5.927 & 5.813 & 0 \\
+rag & convomem & session\_chunks\_cosine\_shared\_embedding\_engine & 50 & 96.0 & 96.0 & 3.529 & 6.591 & 5.849 & 0 \\
+rag & convomem & session\_chunks\_cosine\_shared\_embedding\_engine & 250 & 81.4 & 80.4 & 3.569 & 6.104 & 34.896 & 0 \\
+rag & convomem & session\_chunks\_cosine\_shared\_embedding\_engine & 250 & 89.533 & 88.8 & 3.446 & 5.854 & 30.495 & 0 \\
+bm25 & locomo & okapi\_bm25\_k1\_1.5\_b\_0.75 & 5 & 60.0 & 60.0 & 0.029 & 0.066 & 0.003 & 0 \\
+bm25 & locomo & okapi\_bm25\_k1\_1.5\_b\_0.75 & 1982 & 94.702 & 94.702 & 0.046 & 0.07 & 0.034 & 0 \\
+bm25 & locomo & okapi\_bm25\_k1\_1.5\_b\_0.75 & 1982 & 87.689 & 87.689 & 0.046 & 0.072 & 0.034 & 0 \\
+erinys & locomo & enhanced\_v2\_boost & 1982 & 98.083 & 98.083 & 7.300 & - & 11.000 & 0 \\
+rag & locomo & session\_chunks\_cosine\_shared\_embedding\_engine & 5 & 80.0 & 80.0 & 2.19 & 2.94 & 0.58 & 0 \\
+rag & locomo & session\_chunks\_cosine\_shared\_embedding\_engine & 1982 & 58.274 & 58.274 & 2.271 & 2.577 & 1.862 & 0 \\
+rag & locomo & session\_chunks\_cosine\_shared\_embedding\_engine & 1982 & 40.868 & 40.868 & 2.271 & 2.604 & 1.77 & 0 \\
+\hline
+\end{tabular}

@@ -49,7 +49,7 @@ top-k 10, `enhanced_v2_boost`, fresh embeddings) gives:
 | **LongMemEval-S** | 500 | **99.4%** | **100.0%** | 3 misses, all rank 6–10; see per-miss analysis below |
 | **LongMemEval-M** | 500 | **96.8%** | 98.0% | **first evaluation** of the hard split (haystack ~476 sessions) |
 | **LoCoMo** | 1,982 | **92.7%** | 97.2% | **fair R@5 ≈ 95.7%** after excluding benchmark-label defects |
-| ConvoMem | 250 | *(not re-measured)* | — | April figure 97.6%; pending re-run |
+| ConvoMem | 250 | — *(headline metric is R@10)* | **97.6%** | re-measured 2026-08-17 with the same official command; matches the April figure |
 
 **Why the deltas are small and not a regression:**
 - **Not the retrieval core.** Reverting to the pristine v0.4.0 code gives the *same* LoCoMo 92.7% — the current release code is not the cause.
@@ -62,6 +62,28 @@ top-k 10, `enhanced_v2_boost`, fresh embeddings) gives:
 - Haystack size per LongMemEval-S question is **~48 sessions** (measured), not "~20" as stated elsewhere on this page.
 - These are retrieval-recall, not E2E QA. See [../docs/LIMITATIONS.md](../docs/LIMITATIONS.md).
 - Pin `fastembed` for reproducibility; embedding pooling changed across fastembed versions.
+
+## Baseline comparison (measured 2026-08-17)
+
+Same corpora, same scoring code, and the same shared embedding engine for the dense
+baseline; `k` matched per cell. Baselines: vendored Okapi BM25 (k1=1.5, b=0.75, no
+external dependency) and naive dense RAG (session chunks, cosine). Harness and raw
+per-run artifacts: [`benchmarks/comparison/`](comparison/).
+
+| Benchmark (N) | System | R@5 | R@10 |
+|:--|:--|--:|--:|
+| LoCoMo (1,982) | **ERINYS** (`enhanced_v2_boost`) | **92.7%** | **97.2%** |
+| | BM25 | 87.7% | 94.7% |
+| | Naive RAG | 40.9% | 58.3% |
+| ConvoMem (250) | **ERINYS** (`enhanced_v2_boost`) | — | **97.6%** |
+| | Naive RAG | 81.4% | 89.5% |
+| | BM25 | 72.0% | 85.9% |
+
+Two takeaways, reported as measured: (1) **BM25 is a strong lexical baseline** for
+conversation-memory retrieval — far stronger than naive dense retrieval on LoCoMo —
+so single-baseline "beats naive RAG" claims overstate progress in this space; (2)
+ERINYS's fused lexical + vector + boosting pipeline is **best in every matched cell**.
+LongMemEval baselines are pending a dataset re-fetch and will be added to the same table.
 
 ---
 

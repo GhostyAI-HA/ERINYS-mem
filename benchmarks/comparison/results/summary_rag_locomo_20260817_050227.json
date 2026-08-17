@@ -1,0 +1,22 @@
+{
+  "system": "rag",
+  "benchmark": "locomo",
+  "mode": "session_chunks_cosine_shared_embedding_engine",
+  "top_k": 5,
+  "n": 1982,
+  "overall": {
+    "r_at_k": 40.868,
+    "perfect_pct": 40.868,
+    "zero_pct": 59.132
+  },
+  "latency": {
+    "p50_ms": 2.271,
+    "p95_ms": 2.604
+  },
+  "ingest_wall_s": 1.77,
+  "scoring_wall_s": 0.004,
+  "retrieval_llm_calls": 0,
+  "embedding_model": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+  "requested_rag_model": "BAAI/bge-small-en-v1.5",
+  "generated_at": "2026-08-17T05:02:27"
+}
