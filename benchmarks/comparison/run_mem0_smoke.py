@@ -48,9 +48,11 @@ def main() -> None:
 
 
 def _check_smoke_limit(benchmark: str, limit: int) -> None:
-    expected = SMOKE_LIMITS[benchmark]
-    if limit != expected:
-        raise SystemExit(f"Mem0 smoke is bounded to --limit {expected} for {benchmark}")
+    # Cost cap: the smoke may run BELOW the bound (smaller probes are cheaper),
+    # never above it.
+    ceiling = SMOKE_LIMITS[benchmark]
+    if limit < 1 or limit > ceiling:
+        raise SystemExit(f"Mem0 smoke is bounded to 1..{ceiling} for {benchmark}")
 
 
 def _run_cases(

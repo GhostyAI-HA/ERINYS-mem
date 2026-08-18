@@ -1,0 +1,1 @@
+{"case_id": "conv-26:0", "category": "temporal", "recall": 1.0, "retrieved_ids": ["session_1", "session_10", "session_12"], "details": {"gold_ids": ["session_1"], "retrieved_ids": ["session_1", "session_10", "session_12"]}, "ingest_wall_s": 126.819, "latency_ms": 250.675}

@@ -159,6 +159,10 @@ def _memory_config(storage_dir: Path, meter: LLMCallMeter) -> dict[str, object]:
     storage_dir.mkdir(parents=True, exist_ok=True)
     llm_provider = os.getenv("MEM0_LLM_PROVIDER", DEFAULT_LLM_PROVIDER)
     llm_config = {"model": os.getenv("MEM0_LLM_MODEL", DEFAULT_LLM_MODEL)}
+    if str(llm_config["model"]).startswith("gpt-5"):
+        # gpt-5 family rejects non-default temperature; mem0's name-based
+        # auto-detection misses "gpt-5-mini", so force the reasoning set.
+        llm_config["is_reasoning_model"] = True
     callback = meter.callback
     llm_config["response_callback"] = callback
     embedder_provider = os.getenv("MEM0_EMBEDDER_PROVIDER", DEFAULT_EMBEDDER_PROVIDER)

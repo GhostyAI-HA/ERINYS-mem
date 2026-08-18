@@ -1,0 +1,50 @@
+{
+  "system": "mem0",
+  "benchmark": "convomem",
+  "mode": "mem0_oss_local",
+  "top_k": 10,
+  "status": "COMPLETED",
+  "n": 5,
+  "overall": {
+    "r_at_k": 80.0,
+    "perfect_pct": 80.0,
+    "zero_pct": 20.0
+  },
+  "latency": {
+    "p50_ms": 278.837,
+    "p95_ms": 765.064
+  },
+  "ingest_wall_s": 417.086,
+  "retrieval_llm_calls": 226,
+  "mem0_settings": {
+    "package": "mem0ai",
+    "llm_provider": "openai",
+    "llm_model": "gpt-4.1-mini",
+    "required_env": "OPENAI_API_KEY",
+    "required_env_present": true,
+    "embedder_provider": "openai",
+    "embedder_model": "text-embedding-3-small",
+    "vector_store_provider": "qdrant",
+    "vector_store_mode": "local_oss",
+    "storage_dir": "/Users/fujiyoshi/oss/ERINYS-mem/benchmarks/comparison/results/mem0_local"
+  },
+  "smoke": {
+    "requested_cases": 5,
+    "prepared_documents": 226,
+    "input_tokens_approx": 7852,
+    "planned_llm_calls": 226,
+    "actual_llm_calls": 226,
+    "actual_input_tokens": 1918948,
+    "actual_output_tokens": 15682,
+    "call_basis": "one Mem0.add(infer=True) per source document",
+    "token_basis": "character length divided by four when provider usage is absent"
+  },
+  "gate": {
+    "provider": "openai",
+    "model": "gpt-4.1-mini",
+    "required_env": "OPENAI_API_KEY",
+    "allowed": true,
+    "reason": "allowed"
+  },
+  "generated_at": "2026-08-18T10:52:50"
+}
