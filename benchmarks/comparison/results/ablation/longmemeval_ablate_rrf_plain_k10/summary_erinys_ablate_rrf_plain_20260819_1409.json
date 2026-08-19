@@ -1,0 +1,94 @@
+{
+  "mode": "ablate_rrf_plain",
+  "top_k": 10,
+  "total_questions": 500,
+  "overall": {
+    "R@5": 98.8,
+    "R@10": 99.6,
+    "NDCG@5": 0.9249556613038545,
+    "NDCG@10": 0.9370995506299875
+  },
+  "per_category": {
+    "knowledge-update": {
+      "count": 78,
+      "R@5": 100.0,
+      "R@10": 100.0,
+      "NDCG@5": 0.9835002176134395,
+      "NDCG@10": 0.9835002176134395
+    },
+    "multi-session": {
+      "count": 133,
+      "R@5": 98.49624060150376,
+      "R@10": 100.0,
+      "NDCG@5": 0.9214003684111376,
+      "NDCG@10": 0.9431330028665962
+    },
+    "single-session-assistant": {
+      "count": 56,
+      "R@5": 100.0,
+      "R@10": 100.0,
+      "NDCG@5": 0.9809049385370249,
+      "NDCG@10": 0.9809049385370249
+    },
+    "single-session-preference": {
+      "count": 30,
+      "R@5": 100.0,
+      "R@10": 100.0,
+      "NDCG@5": 0.8225700601550933,
+      "NDCG@10": 0.8225700601550933
+    },
+    "single-session-user": {
+      "count": 70,
+      "R@5": 100.0,
+      "R@10": 100.0,
+      "NDCG@5": 0.958276983892155,
+      "NDCG@10": 0.958276983892155
+    },
+    "temporal-reasoning": {
+      "count": 133,
+      "R@5": 96.99248120300751,
+      "R@10": 98.49624060150376,
+      "NDCG@5": 0.8761759206332377,
+      "NDCG@10": 0.900097005448956
+    }
+  },
+  "timing": {
+    "embed_total_s": 12.2,
+    "search_total_s": 6.8,
+    "avg_embed_per_q_s": 0.02,
+    "avg_search_per_q_ms": 13.6
+  },
+  "misses_at_5": [
+    {
+      "question_id": "10d9b85a",
+      "question_type": "multi-session",
+      "question": "How many days did I spend attending workshops, lectures, and conferences in April?"
+    },
+    {
+      "question_id": "c18a7dc8",
+      "question_type": "multi-session",
+      "question": "How many years older am I than when I graduated from college?"
+    },
+    {
+      "question_id": "71017277",
+      "question_type": "temporal-reasoning",
+      "question": "I received a piece of jewelry last Saturday from whom?"
+    },
+    {
+      "question_id": "gpt4_4929293b",
+      "question_type": "temporal-reasoning",
+      "question": "What was the the life event of one of my relatives that I participated in a week ago?"
+    },
+    {
+      "question_id": "gpt4_468eb064",
+      "question_type": "temporal-reasoning",
+      "question": "Who did I meet with during the lunch last Tuesday?"
+    },
+    {
+      "question_id": "4dfccbf8",
+      "question_type": "temporal-reasoning",
+      "question": "What did I do with Rachel on the Wednesday two months ago?"
+    }
+  ],
+  "total_time_s": 20.3
+}

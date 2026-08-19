@@ -1,0 +1,84 @@
+{
+  "mode": "ablate_no_temporal",
+  "top_k": 10,
+  "total_questions": 500,
+  "overall": {
+    "R@5": 99.2,
+    "R@10": 99.8,
+    "NDCG@5": 0.9357482331643253,
+    "NDCG@10": 0.9474880200380519
+  },
+  "per_category": {
+    "knowledge-update": {
+      "count": 78,
+      "R@5": 100.0,
+      "R@10": 100.0,
+      "NDCG@5": 0.9822198358046853,
+      "NDCG@10": 0.9848401229532556
+    },
+    "multi-session": {
+      "count": 133,
+      "R@5": 99.24812030075188,
+      "R@10": 100.0,
+      "NDCG@5": 0.927255704093897,
+      "NDCG@10": 0.9424183089527416
+    },
+    "single-session-assistant": {
+      "count": 56,
+      "R@5": 98.21428571428571,
+      "R@10": 100.0,
+      "NDCG@5": 0.9666237455994903,
+      "NDCG@10": 0.9725761265518713
+    },
+    "single-session-preference": {
+      "count": 30,
+      "R@5": 100.0,
+      "R@10": 100.0,
+      "NDCG@5": 0.8822080559895131,
+      "NDCG@10": 0.8822080559895131
+    },
+    "single-session-user": {
+      "count": 70,
+      "R@5": 100.0,
+      "R@10": 100.0,
+      "NDCG@5": 0.9770398465816338,
+      "NDCG@10": 0.9770398465816338
+    },
+    "temporal-reasoning": {
+      "count": 133,
+      "R@5": 98.49624060150376,
+      "R@10": 99.24812030075188,
+      "NDCG@5": 0.8943308274506596,
+      "NDCG@10": 0.9192597842906229
+    }
+  },
+  "timing": {
+    "embed_total_s": 14.6,
+    "search_total_s": 9.6,
+    "avg_embed_per_q_s": 0.03,
+    "avg_search_per_q_ms": 19.3
+  },
+  "misses_at_5": [
+    {
+      "question_id": "60bf93ed_abs",
+      "question_type": "multi-session",
+      "question": "How many days did it take for my iPad case to arrive after I bought it?"
+    },
+    {
+      "question_id": "gpt4_4929293b",
+      "question_type": "temporal-reasoning",
+      "question": "What was the the life event of one of my relatives that I participated in a week ago?"
+    },
+    {
+      "question_id": "gpt4_468eb064",
+      "question_type": "temporal-reasoning",
+      "question": "Who did I meet with during the lunch last Tuesday?"
+    },
+    {
+      "question_id": "18dcd5a5",
+      "question_type": "single-session-assistant",
+      "question": "I'm going back to our previous chat about the Lost Temple of the Djinn one-shot. Can you remind me how many mummies the party will face in the temple?"
+    }
+  ],
+  "total_time_s": 25.7
+}

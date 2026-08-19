@@ -243,7 +243,7 @@ def _focus_inference_query(query: str) -> str:
     return result if len(result.split()) >= 2 else query
 
 
-def search_enhanced_v2_boost(db, query, top_k=10):
+def search_enhanced_v2_boost(db, query, top_k=10, boost_overrides=None):
     """Enhanced v2 with multi-query expansion for inference queries."""
     query_emb = embedding_engine.embed(query)
     focused_emb = None
@@ -265,6 +265,8 @@ def search_enhanced_v2_boost(db, query, top_k=10):
         db=db, query=query, project="convomem", limit=max(top_k, search_limit),
         proper_noun_boost=0.5, keyword_boost=0.5, bigram_boost=0.5, temporal_content_boost=0.5
     )
+    if boost_overrides:
+        kwargs.update(boost_overrides)
 
     if focused_emb and _is_inference_query(query):
         kwargs_res1 = kwargs.copy()
@@ -308,12 +310,42 @@ def search_enhanced_v2_boost(db, query, top_k=10):
         )
 
 
+def _make_ablate_boost(overrides):
+    def _fn(db, query, top_k=10):
+        return search_enhanced_v2_boost(db, query, top_k, boost_overrides=overrides)
+    return _fn
+
+
+def _make_ablate_weights(fts_weight, vec_weight):
+    """Fusion-only ablation: tunable overlap boosts zeroed.
+
+    The unconditional noun-phrase heuristic inside rrf_hybrid_search has no
+    kwarg and remains active; documented in the ablation notes.
+    """
+    def _fn(db, query, top_k=10):
+        query_emb = embedding_engine.embed(query)
+        return rrf_hybrid_search(
+            db, query=query, query_embedding=query_emb,
+            project="convomem", limit=max(top_k, 50),
+            fts_weight=fts_weight, vec_weight=vec_weight,
+            keyword_boost=0.0, bigram_boost=0.0, proper_noun_boost=0.0,
+            quoted_phrase_boost=0.0, temporal_content_boost=0.0,
+        )
+    return _fn
+
+
 SEARCH_FNS = {
     "rrf": search_rrf,
     "enhanced": search_enhanced,
     "enhanced_v2": search_enhanced_v2,
     "enhanced_v2_pref": search_enhanced_v2_pref,
     "enhanced_v2_boost": search_enhanced_v2_boost,
+    # w3 ablations: one ranking component removed at a time
+    "ablate_no_bigram": _make_ablate_boost({"bigram_boost": 0.0}),
+    "ablate_no_keyword": _make_ablate_boost({"keyword_boost": 0.0}),
+    "ablate_rrf_plain": _make_ablate_weights(0.4, 0.6),
+    "ablate_vec_only": _make_ablate_weights(0.0, 1.0),
+    "ablate_fts_only": _make_ablate_weights(1.0, 0.0),
 }
 
 

@@ -1,0 +1,74 @@
+{
+  "mode": "ablate_no_keyword",
+  "top_k": 10,
+  "total_questions": 500,
+  "overall": {
+    "R@5": 99.6,
+    "R@10": 100.0,
+    "NDCG@5": 0.9393254351067634,
+    "NDCG@10": 0.9493162654670864
+  },
+  "per_category": {
+    "knowledge-update": {
+      "count": 78,
+      "R@5": 100.0,
+      "R@10": 100.0,
+      "NDCG@5": 0.9822198358046853,
+      "NDCG@10": 0.9850199311485079
+    },
+    "multi-session": {
+      "count": 133,
+      "R@5": 100.0,
+      "R@10": 100.0,
+      "NDCG@5": 0.9344438760871677,
+      "NDCG@10": 0.9476547848042658
+    },
+    "single-session-assistant": {
+      "count": 56,
+      "R@5": 98.21428571428571,
+      "R@10": 100.0,
+      "NDCG@5": 0.960033205484695,
+      "NDCG@10": 0.9659855864370759
+    },
+    "single-session-preference": {
+      "count": 30,
+      "R@5": 100.0,
+      "R@10": 100.0,
+      "NDCG@5": 0.8822080559895131,
+      "NDCG@10": 0.8822080559895131
+    },
+    "single-session-user": {
+      "count": 70,
+      "R@5": 100.0,
+      "R@10": 100.0,
+      "NDCG@5": 0.9760495116969681,
+      "NDCG@10": 0.9760495116969681
+    },
+    "temporal-reasoning": {
+      "count": 133,
+      "R@5": 99.24812030075188,
+      "R@10": 100.0,
+      "NDCG@5": 0.9038869762060667,
+      "NDCG@10": 0.9240871532785172
+    }
+  },
+  "timing": {
+    "embed_total_s": 12.1,
+    "search_total_s": 7.5,
+    "avg_embed_per_q_s": 0.02,
+    "avg_search_per_q_ms": 14.9
+  },
+  "misses_at_5": [
+    {
+      "question_id": "gpt4_468eb064",
+      "question_type": "temporal-reasoning",
+      "question": "Who did I meet with during the lunch last Tuesday?"
+    },
+    {
+      "question_id": "18dcd5a5",
+      "question_type": "single-session-assistant",
+      "question": "I'm going back to our previous chat about the Lost Temple of the Djinn one-shot. Can you remind me how many mummies the party will face in the temple?"
+    }
+  ],
+  "total_time_s": 20.9
+}

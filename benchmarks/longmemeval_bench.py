@@ -517,7 +517,13 @@ def search_enhanced_v4_temporal(
     return collapse_by_session(wide_results, limit=top_k)
 
 
-CHUNKED_MODES = {"enhanced_v3", "enhanced_v4", "enhanced_v2_boost"}
+CHUNKED_MODES = {
+    "enhanced_v3", "enhanced_v4", "enhanced_v2_boost",
+    # w3 ablations share the full system's chunked ingestion so that only
+    # the ranking component under test differs.
+    "ablate_no_bigram", "ablate_no_keyword", "ablate_no_temporal",
+    "ablate_rrf_plain", "ablate_vec_only", "ablate_fts_only",
+}
 
 _INFERENCE_MARKERS = frozenset({
     'would', 'could', 'likely', 'probably', 'potentially',
@@ -564,16 +570,18 @@ def _focus_inference_query(query: str) -> str:
     return result if len(result.split()) >= 2 else query
 
 
-def search_enhanced_v2_boost(db, query, top_k=10):
+def search_enhanced_v2_boost(db, query, top_k=10, boost_overrides=None):
     """Enhanced v2 with multi-query expansion for inference queries."""
-    return _v2_boost_core(db, query, top_k)
+    return _v2_boost_core(db, query, top_k, boost_overrides=boost_overrides)
 
 
 def search_enhanced_v2_boost_temporal(
-    db, query, sid_to_date, question_date_str, top_k=10
+    db, query, sid_to_date, question_date_str, top_k=10, boost_overrides=None
 ):
     """Enhanced v2 boost with temporal date-proximity boosting."""
-    results = _v2_boost_core(db, query, top_k, skip_collapse=True)
+    results = _v2_boost_core(
+        db, query, top_k, skip_collapse=True, boost_overrides=boost_overrides
+    )
     anchor = _parse_haystack_date(question_date_str)
     if anchor:
         for r in results:
@@ -587,8 +595,12 @@ def search_enhanced_v2_boost_temporal(
     return collapse_by_session(results, limit=top_k)
 
 
-def _v2_boost_core(db, query, top_k=10, skip_collapse=False):
-    """Core logic for v2_boost, shared by temporal and non-temporal paths."""
+def _v2_boost_core(db, query, top_k=10, skip_collapse=False, boost_overrides=None):
+    """Core logic for v2_boost, shared by temporal and non-temporal paths.
+
+    boost_overrides: dict merged into the rrf_hybrid_search boost kwargs,
+    used by ablation modes (e.g. {"bigram_boost": 0.0}).
+    """
     query_emb = embedding_engine.embed(query)
     focused_emb = None
     focused_text = None
@@ -609,6 +621,8 @@ def _v2_boost_core(db, query, top_k=10, skip_collapse=False):
         db=db, query=query, project="longmemeval", limit=max(top_k, search_limit),
         proper_noun_boost=0.5, keyword_boost=0.5, bigram_boost=0.5, temporal_content_boost=0.5
     )
+    if boost_overrides:
+        kwargs.update(boost_overrides)
 
     if focused_emb and _is_inference_query(query):
         kwargs_res1 = kwargs.copy()
@@ -657,6 +671,43 @@ def _v2_boost_core(db, query, top_k=10, skip_collapse=False):
         return collapse_by_session(wide, limit=top_k)
 
 
+def _make_ablate_boost(overrides):
+    def _fn(db, query, top_k=10):
+        return search_enhanced_v2_boost(db, query, top_k, boost_overrides=overrides)
+    return _fn
+
+
+def _make_ablate_weights(fts_weight, vec_weight):
+    """Fusion-only ablation: tunable overlap boosts zeroed, chunked ingestion.
+
+    The unconditional noun-phrase heuristic inside rrf_hybrid_search has no
+    kwarg and remains active; documented in the ablation notes.
+    """
+    def _fn(db, query, top_k=10):
+        query_emb = embedding_engine.embed(query)
+        return rrf_hybrid_search(
+            db, query=query, query_embedding=query_emb,
+            project="longmemeval", limit=max(top_k, 50),
+            fts_weight=fts_weight, vec_weight=vec_weight,
+            keyword_boost=0.0, bigram_boost=0.0, proper_noun_boost=0.0,
+            quoted_phrase_boost=0.0, temporal_content_boost=0.0,
+        )
+    return _fn
+
+
+# Ablation modes (paper w3): same chunked ingestion as enhanced_v2_boost,
+# one ranking component removed at a time.
+ABLATE_NO_BIGRAM = {"bigram_boost": 0.0}
+ABLATE_NO_KEYWORD = {"keyword_boost": 0.0}
+
+# Modes routed through the date-proximity temporal wrapper when dates exist.
+# Value = boost_overrides for the underlying core (None = full system).
+TEMPORAL_BOOST_MODES = {
+    "enhanced_v2_boost": None,
+    "ablate_no_bigram": ABLATE_NO_BIGRAM,
+    "ablate_no_keyword": ABLATE_NO_KEYWORD,
+}
+
 SEARCH_FNS = {
     "rrf": search_rrf,
     "vec": search_vec_only,
@@ -666,6 +717,12 @@ SEARCH_FNS = {
     "enhanced_v3": search_enhanced_v3,
     "enhanced_v4": search_enhanced_v4,
     "enhanced_v2_boost": search_enhanced_v2_boost,
+    "ablate_no_bigram": _make_ablate_boost(ABLATE_NO_BIGRAM),
+    "ablate_no_keyword": _make_ablate_boost(ABLATE_NO_KEYWORD),
+    "ablate_no_temporal": search_enhanced_v2_boost,
+    "ablate_rrf_plain": _make_ablate_weights(0.4, 0.6),
+    "ablate_vec_only": _make_ablate_weights(0.0, 1.0),
+    "ablate_fts_only": _make_ablate_weights(1.0, 0.0),
 }
 
 
@@ -789,9 +846,10 @@ def run_benchmark(
             search_results = search_enhanced_v4_temporal(
                 db, question, sid_to_date, question_date_str, top_k=max(top_k, 10)
             )
-        elif mode == "enhanced_v2_boost" and question_date_str and sid_to_date:
+        elif mode in TEMPORAL_BOOST_MODES and question_date_str and sid_to_date:
             search_results = search_enhanced_v2_boost_temporal(
-                db, question, sid_to_date, question_date_str, top_k=max(top_k, 10)
+                db, question, sid_to_date, question_date_str, top_k=max(top_k, 10),
+                boost_overrides=TEMPORAL_BOOST_MODES[mode],
             )
         else:
             search_results = search_fn(db, question, top_k=max(top_k, 10))

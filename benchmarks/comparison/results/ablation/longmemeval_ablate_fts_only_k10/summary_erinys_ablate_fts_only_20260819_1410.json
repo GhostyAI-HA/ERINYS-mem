@@ -1,0 +1,139 @@
+{
+  "mode": "ablate_fts_only",
+  "top_k": 10,
+  "total_questions": 500,
+  "overall": {
+    "R@5": 97.0,
+    "R@10": 98.4,
+    "NDCG@5": 0.891628700198193,
+    "NDCG@10": 0.9060871185957583
+  },
+  "per_category": {
+    "knowledge-update": {
+      "count": 78,
+      "R@5": 100.0,
+      "R@10": 100.0,
+      "NDCG@5": 0.9838447100468151,
+      "NDCG@10": 0.9838447100468151
+    },
+    "multi-session": {
+      "count": 133,
+      "R@5": 98.49624060150376,
+      "R@10": 98.49624060150376,
+      "NDCG@5": 0.862390548799827,
+      "NDCG@10": 0.8903331358871416
+    },
+    "single-session-assistant": {
+      "count": 56,
+      "R@5": 100.0,
+      "R@10": 100.0,
+      "NDCG@5": 0.9755523170280618,
+      "NDCG@10": 0.9755523170280618
+    },
+    "single-session-preference": {
+      "count": 30,
+      "R@5": 83.33333333333334,
+      "R@10": 90.0,
+      "NDCG@5": 0.6246055539117517,
+      "NDCG@10": 0.64699462270821
+    },
+    "single-session-user": {
+      "count": 70,
+      "R@5": 98.57142857142858,
+      "R@10": 100.0,
+      "NDCG@5": 0.9472830319289454,
+      "NDCG@10": 0.9523717060304886
+    },
+    "temporal-reasoning": {
+      "count": 133,
+      "R@5": 94.73684210526315,
+      "R@10": 97.74436090225564,
+      "NDCG@5": 0.8623880535272013,
+      "NDCG@10": 0.881072007400645
+    }
+  },
+  "timing": {
+    "embed_total_s": 12.8,
+    "search_total_s": 7.1,
+    "avg_embed_per_q_s": 0.03,
+    "avg_search_per_q_ms": 14.1
+  },
+  "misses_at_5": [
+    {
+      "question_id": "ccb36322",
+      "question_type": "single-session-user",
+      "question": "What is the name of the music streaming service have I been using lately?"
+    },
+    {
+      "question_id": "32260d93",
+      "question_type": "single-session-preference",
+      "question": "Can you recommend a show or movie for me to watch tonight?"
+    },
+    {
+      "question_id": "1a1907b4",
+      "question_type": "single-session-preference",
+      "question": "I've been thinking about making a cocktail for an upcoming get-together, but I'm not sure which one to choose. Any suggestions?"
+    },
+    {
+      "question_id": "09d032c9",
+      "question_type": "single-session-preference",
+      "question": "I've been having trouble with the battery life on my phone lately. Any tips?"
+    },
+    {
+      "question_id": "38146c39",
+      "question_type": "single-session-preference",
+      "question": "I've been feeling like my chocolate chip cookies need something extra. Any advice?"
+    },
+    {
+      "question_id": "57f827a0",
+      "question_type": "single-session-preference",
+      "question": "I was thinking about rearranging the furniture in my bedroom this weekend. Any tips?"
+    },
+    {
+      "question_id": "c18a7dc8",
+      "question_type": "multi-session",
+      "question": "How many years older am I than when I graduated from college?"
+    },
+    {
+      "question_id": "8e91e7d9",
+      "question_type": "multi-session",
+      "question": "What is the total number of siblings I have?"
+    },
+    {
+      "question_id": "gpt4_7f6b06db",
+      "question_type": "temporal-reasoning",
+      "question": "What is the order of the three trips I took in the past three months, from earliest to latest?"
+    },
+    {
+      "question_id": "71017277",
+      "question_type": "temporal-reasoning",
+      "question": "I received a piece of jewelry last Saturday from whom?"
+    },
+    {
+      "question_id": "gpt4_4929293b",
+      "question_type": "temporal-reasoning",
+      "question": "What was the the life event of one of my relatives that I participated in a week ago?"
+    },
+    {
+      "question_id": "9a707b82",
+      "question_type": "temporal-reasoning",
+      "question": "I mentioned cooking something for my friend a couple of days ago. What was it?"
+    },
+    {
+      "question_id": "eac54add",
+      "question_type": "temporal-reasoning",
+      "question": "What was the significant business milestone I mentioned four weeks ago?"
+    },
+    {
+      "question_id": "gpt4_8279ba03",
+      "question_type": "temporal-reasoning",
+      "question": "What kitchen appliance did I buy 10 days ago?"
+    },
+    {
+      "question_id": "gpt4_b5700ca0",
+      "question_type": "temporal-reasoning",
+      "question": "Where did I attend the religious activity last week?"
+    }
+  ],
+  "total_time_s": 21.3
+}
