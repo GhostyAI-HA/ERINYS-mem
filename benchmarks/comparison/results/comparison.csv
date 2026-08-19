@@ -22,3 +22,5 @@ bm25,longmemeval,okapi_bm25_k1_1.5_b_0.75,5,500,96.8,96.8,0.165,0.315,9.692,0
 bm25,longmemeval,okapi_bm25_k1_1.5_b_0.75,10,500,98.4,98.4,0.167,0.399,10.337,0
 rag,longmemeval,session_chunks_cosine_shared_embedding_engine,5,500,92.2,92.2,4.151,9.927,174.613,0
 rag,longmemeval,session_chunks_cosine_shared_embedding_engine,10,500,95.2,95.2,4.397,9.191,181.474,0
+mem0,convomem,mem0_oss_local,10,250,83.133,82.4,262.299,772.687,22337.877,10687
+mem0,locomo,mem0_oss_local,10,1982,94.551,94.551,317.118,577.436,1714.758,253

@@ -5,8 +5,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 import json
 import os
+import time
 from pathlib import Path
-from typing import Mapping, Protocol, Sequence
+from typing import Callable, Mapping, Protocol, Sequence, TypeVar
 
 DEFAULT_LLM_PROVIDER = "openai"
 DEFAULT_LLM_MODEL = "gpt-5-mini"
@@ -19,6 +20,31 @@ REQUIRED_ENV_BY_PROVIDER = {
     "gemini": "GEMINI_API_KEY",
     "anthropic": "ANTHROPIC_API_KEY",
 }
+
+
+RETRY_ATTEMPTS = 4
+RETRY_BACKOFF_S = (10.0, 30.0, 90.0)
+CallResult = TypeVar("CallResult")
+
+
+def _call_with_retry(operation: Callable[[], CallResult], label: str) -> CallResult:
+    """Retry transient provider failures so multi-hour runs survive them."""
+    for attempt in range(1, RETRY_ATTEMPTS + 1):
+        try:
+            return operation()
+        except KeyboardInterrupt:
+            raise
+        except Exception as error:
+            if attempt == RETRY_ATTEMPTS:
+                raise
+            wait = RETRY_BACKOFF_S[attempt - 1]
+            print(
+                f"[mem0-retry] {label} attempt {attempt}/{RETRY_ATTEMPTS} "
+                f"failed ({type(error).__name__}: {error}); retrying in {wait:.0f}s",
+                flush=True,
+            )
+            time.sleep(wait)
+    raise AssertionError("unreachable")
 
 
 class SourceDocument(Protocol):
@@ -112,11 +138,14 @@ class Mem0System:
     def ingest(self, documents: Sequence[SourceDocument]) -> None:
         """Add each source document and retain the returned memory IDs."""
         for document in documents:
-            result = self.memory.add(
-                [{"role": "user", "content": document.text}],
-                user_id=self.user_id,
-                metadata={"source_id": document.doc_id},
-                infer=True,
+            result = _call_with_retry(
+                lambda: self.memory.add(
+                    [{"role": "user", "content": document.text}],
+                    user_id=self.user_id,
+                    metadata={"source_id": document.doc_id},
+                    infer=True,
+                ),
+                f"add:{document.doc_id}",
             )
             for item in _result_items(result):
                 memory_id = str(item.get("id", ""))
@@ -125,10 +154,13 @@ class Mem0System:
 
     def search(self, query: str, top_k: int) -> list[str]:
         """Search Mem0 and project results back to source document IDs."""
-        result = self.memory.search(
-            query,
-            top_k=top_k,
-            filters={"user_id": self.user_id},
+        result = _call_with_retry(
+            lambda: self.memory.search(
+                query,
+                top_k=top_k,
+                filters={"user_id": self.user_id},
+            ),
+            f"search:{self.user_id}",
         )
         ranked: list[str] = []
         for item in _result_items(result):
@@ -138,11 +170,19 @@ class Mem0System:
         return ranked
 
     def close(self) -> None:
-        """Close a local vector-store client when the provider exposes it."""
-        client = getattr(getattr(self.memory, "vector_store", None), "client", None)
-        close = getattr(client, "close", None)
-        if callable(close):
-            close()
+        """Close local vector-store clients when the provider exposes them.
+
+        Both the memory store and mem0's internal telemetry/migrations store
+        (a second local qdrant at ~/.mem0/migrations_qdrant) hold file locks;
+        leaving the latter open blocks the next Mem0System in this process.
+        """
+        for store in (
+            getattr(self.memory, "vector_store", None),
+            getattr(self.memory, "_telemetry_vector_store", None),
+        ):
+            close = getattr(getattr(store, "client", None), "close", None)
+            if callable(close):
+                close()
 
     def _source_id(self, item: Mapping[str, object]) -> str:
         memory_id = str(item.get("id", ""))
