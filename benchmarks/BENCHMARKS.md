@@ -59,7 +59,7 @@ top-k 10, `enhanced_v2_boost`, fresh embeddings) gives:
 **LoCoMo miss audit (144 R@5 misses classified):** 32 unfair labels + 29 unanswerable/adversarial = **61 (42%) are benchmark defects**, not retrieval failures (e.g. an answer discussed across many sessions but pinned to one gold; a labelled evidence turn that does not exist; speculative "what would X's political leaning be?"). Excluding these, **fair R@5 ≈ 95.7%**. The remaining 83 are 50 genuine retrieval misses + 33 hard multi-hop inference. Method: LLM-assisted classification against session summaries — high-confidence items should be spot-checked before filing upstream.
 
 **Data caveats (honesty):**
-- Haystack size per LongMemEval-S question is **~48 sessions** (measured), not "~20" as stated elsewhere on this page.
+- Haystack size per LongMemEval-S question is **~50 sessions** (measured on the public HF split: mean 50.2, median 50, range 39-66), not "~20" as earlier revisions of this page stated (an interim note said ~48, measured on a cleaned local copy).
 - These are retrieval-recall, not E2E QA. See [../docs/LIMITATIONS.md](../docs/LIMITATIONS.md).
 - Pin `fastembed` for reproducibility; embedding pooling changed across fastembed versions.
 
@@ -89,7 +89,7 @@ LongMemEval baselines are pending a dataset re-fetch and will be added to the sa
 
 ## LongMemEval-S (N=500)
 
-**Dataset**: [LongMemEval](https://github.com/xiaowu0162/LongMemEval), `longmemeval_s` split. 500 questions across 6 categories, ~20 haystack sessions per question.
+**Dataset**: [LongMemEval](https://github.com/xiaowu0162/LongMemEval), `longmemeval_s` split. 500 questions across 6 categories, ~50 haystack sessions per question (measured mean 50.2).
 
 **Result**: 500/500 correct at R@5. Every question type at 100%.
 
@@ -107,7 +107,7 @@ NDCG@5 varies because the *ranking order* within the top-5 differs — but every
 ### Caveat: The `_s` split
 
 LongMemEval publishes three splits:
-- `_s` (small): ~20 sessions per question — fewer distractors
+- `_s` (small): ~50 sessions per question — fewer distractors
 - `_m` (medium): more sessions — harder retrieval
 - `_oracle`: gold sessions pre-selected — trivial
 
@@ -127,7 +127,7 @@ This matters because the community has recently scrutinized LongMemEval 100% cla
 - ❌ No LLM reranking at any stage
 - ❌ No algorithm modifications targeting specific failed questions
 - ❌ No held-out / dev split contamination — the same `enhanced_v2_boost` mode runs all three benchmarks unchanged
-- ❌ No top-k inflation — `top_k=10` against ~20 sessions (50% coverage, not trivially guaranteed)
+- ❌ No top-k inflation — `top_k=10` against ~50 sessions (~20% coverage, not trivially guaranteed)
 
 **Without the patch:** The `eac54add` question would score as a miss due to the incorrect gold label, giving 499/500 (99.8% R@5). The search engine still retrieves the correct session — the evaluation just can't verify it because the label points to the wrong session.
 
@@ -260,7 +260,7 @@ python benchmarks/convomem_bench.py --category all --limit 50 \
 python run_all_benchmarks.py
 ```
 
-`--top-k 10` controls how many results are scored; R@5 and R@10 are both computed from that window. `_s` questions have ~20 haystack sessions each, so a top-10 window is 50% coverage — recall at 5/10 is not trivially guaranteed. To reproduce `_m` you would need to fetch and pass the `_m` dataset; we have not done this, so no `_m` number is reported here.
+`--top-k 10` controls how many results are scored; R@5 and R@10 are both computed from that window. `_s` questions have ~50 haystack sessions each, so a top-10 window is ~20% coverage — recall at 5/10 is not trivially guaranteed. To reproduce `_m` you would need to fetch and pass the `_m` dataset; we have not done this, so no `_m` number is reported here.
 
 ## Embedding profile vs runtime default
 

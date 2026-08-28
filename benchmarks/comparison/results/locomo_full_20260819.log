@@ -1,0 +1,270 @@
+[PostHog] Multiple active PostHog clients detected for the same project API key and host. Reuse one Posthog instance per app or process when possible to avoid competing background queues and missed shutdown flushes. Multiple clients are supported when intentional.
+LLM extraction failed: Request timed out.
+Traceback (most recent call last):
+  File "/Users/fujiyoshi/oss/ERINYS-mem/.venv/lib/python3.14/site-packages/httpx2/_transports/default.py", line 98, in map_httpcore_exceptions
+    yield
+  File "/Users/fujiyoshi/oss/ERINYS-mem/.venv/lib/python3.14/site-packages/httpx2/_transports/default.py", line 245, in handle_request
+    resp = self._pool.handle_request(req)
+  File "/Users/fujiyoshi/oss/ERINYS-mem/.venv/lib/python3.14/site-packages/httpcore2/_sync/connection_pool.py", line 242, in handle_request
+    raise exc from None
+  File "/Users/fujiyoshi/oss/ERINYS-mem/.venv/lib/python3.14/site-packages/httpcore2/_sync/connection_pool.py", line 224, in handle_request
+    response = connection.handle_request(pool_request.request)
+  File "/Users/fujiyoshi/oss/ERINYS-mem/.venv/lib/python3.14/site-packages/httpcore2/_sync/connection.py", line 94, in handle_request
+    raise exc
+  File "/Users/fujiyoshi/oss/ERINYS-mem/.venv/lib/python3.14/site-packages/httpcore2/_sync/connection.py", line 74, in handle_request
+    stream = self._connect(request)
+  File "/Users/fujiyoshi/oss/ERINYS-mem/.venv/lib/python3.14/site-packages/httpcore2/_sync/connection.py", line 140, in _connect
+    stream = stream.start_tls(**kwargs)
+  File "/Users/fujiyoshi/oss/ERINYS-mem/.venv/lib/python3.14/site-packages/httpcore2/_backends/sync.py", line 154, in start_tls
+    with map_exceptions(exc_map):
+         ~~~~~~~~~~~~~~^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/contextlib.py", line 162, in __exit__
+    self.gen.throw(value)
+    ~~~~~~~~~~~~~~^^^^^^^
+  File "/Users/fujiyoshi/oss/ERINYS-mem/.venv/lib/python3.14/site-packages/httpcore2/_exceptions.py", line 17, in map_exceptions
+    raise to_exc(exc) from exc
+httpcore2.ConnectTimeout: _ssl.c:1064: The handshake operation timed out
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/fujiyoshi/oss/ERINYS-mem/.venv/lib/python3.14/site-packages/openai/_base_client.py", line 1087, in request
+    response = self._send_request(
+        request,
+        stream=stream or self._should_stream_response_body(request=request),
+        **kwargs,
+    )
+  File "/Users/fujiyoshi/oss/ERINYS-mem/.venv/lib/python3.14/site-packages/openai/_client.py", line 491, in _send_request
+    response = self._send_with_auth_retry(request, stream=stream, **kwargs)
+  File "/Users/fujiyoshi/oss/ERINYS-mem/.venv/lib/python3.14/site-packages/openai/_client.py", line 469, in _send_with_auth_retry
+    response = super()._send_request(request, stream=stream, **kwargs)
+  File "/Users/fujiyoshi/oss/ERINYS-mem/.venv/lib/python3.14/site-packages/openai/_base_client.py", line 1010, in _send_request
+    return self._client.send(request, stream=stream, **kwargs)
+           ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/fujiyoshi/oss/ERINYS-mem/.venv/lib/python3.14/site-packages/httpx2/_client.py", line 987, in send
+    response = self._send_handling_auth(
+        request,
+    ...<2 lines>...
+        history=[],
+    )
+  File "/Users/fujiyoshi/oss/ERINYS-mem/.venv/lib/python3.14/site-packages/httpx2/_client.py", line 1015, in _send_handling_auth
+    response = self._send_handling_redirects(
+        request,
+        follow_redirects=follow_redirects,
+        history=history,
+    )
+  File "/Users/fujiyoshi/oss/ERINYS-mem/.venv/lib/python3.14/site-packages/httpx2/_client.py", line 1050, in _send_handling_redirects
+    response = self._send_single_request(request)
+  File "/Users/fujiyoshi/oss/ERINYS-mem/.venv/lib/python3.14/site-packages/httpx2/_client.py", line 1083, in _send_single_request
+    response = transport.handle_request(request)
+  File "/Users/fujiyoshi/oss/ERINYS-mem/.venv/lib/python3.14/site-packages/httpx2/_transports/default.py", line 244, in handle_request
+    with map_httpcore_exceptions():
+         ~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/contextlib.py", line 162, in __exit__
+    self.gen.throw(value)
+    ~~~~~~~~~~~~~~^^^^^^^
+  File "/Users/fujiyoshi/oss/ERINYS-mem/.venv/lib/python3.14/site-packages/httpx2/_transports/default.py", line 115, in map_httpcore_exceptions
+    raise mapped_exc(message) from exc
+httpx2.ConnectTimeout: _ssl.c:1064: The handshake operation timed out
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/fujiyoshi/oss/ERINYS-mem/.venv/lib/python3.14/site-packages/mem0/memory/main.py", line 956, in _add_to_vector_store
+    response = self.llm.generate_response(
+        messages=[
+    ...<3 lines>...
+        response_format={"type": "json_object"},
+    )
+  File "/Users/fujiyoshi/oss/ERINYS-mem/.venv/lib/python3.14/site-packages/mem0/llms/openai.py", line 141, in generate_response
+    response = self.client.chat.completions.create(**params)
+  File "/Users/fujiyoshi/oss/ERINYS-mem/.venv/lib/python3.14/site-packages/openai/_utils/_utils.py", line 298, in wrapper
+    return func(*args, **kwargs)
+  File "/Users/fujiyoshi/oss/ERINYS-mem/.venv/lib/python3.14/site-packages/openai/resources/chat/completions/completions.py", line 1296, in create
+    return self._post(
+           ~~~~~~~~~~^
+        "/chat/completions",
+        ^^^^^^^^^^^^^^^^^^^^
+    ...<53 lines>...
+        stream_cls=Stream[ChatCompletionChunk],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/fujiyoshi/oss/ERINYS-mem/.venv/lib/python3.14/site-packages/openai/_base_client.py", line 1382, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/fujiyoshi/oss/ERINYS-mem/.venv/lib/python3.14/site-packages/openai/_base_client.py", line 1105, in request
+    raise APITimeoutError(request=request) from err
+openai.APITimeoutError: Request timed out.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/fujiyoshi/oss/ERINYS-mem/benchmarks/comparison/run_mem0_full.py", line 101, in <module>
+    main()
+    ~~~~^^
+  File "/Users/fujiyoshi/oss/ERINYS-mem/benchmarks/comparison/run_mem0_full.py", line 54, in main
+    results.append(smoke._run_case(case, meter))
+                   ~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "/Users/fujiyoshi/oss/ERINYS-mem/benchmarks/comparison/run_mem0_smoke.py", line 75, in _run_case
+    system.ingest(case.documents)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^
+  File "/Users/fujiyoshi/oss/ERINYS-mem/benchmarks/comparison/mem0_adapter.py", line 115, in ingest
+    result = self.memory.add(
+        [{"role": "user", "content": document.text}],
+    ...<2 lines>...
+        infer=True,
+    )
+  File "/Users/fujiyoshi/oss/ERINYS-mem/.venv/lib/python3.14/site-packages/mem0/memory/main.py", line 869, in add
+    vector_store_result = self._add_to_vector_store(messages, processed_metadata, effective_filters, infer, prompt=prompt)
+  File "/Users/fujiyoshi/oss/ERINYS-mem/.venv/lib/python3.14/site-packages/mem0/memory/main.py", line 969, in _add_to_vector_store
+    raise LLMError(f"LLM extraction failed: {e}") from e
+mem0.exceptions.LLMError: LLM extraction failed: Request timed out.
+[mem0-full] resume: 5 checkpointed cases reused
+[PostHog] Multiple active PostHog clients detected for the same project API key and host. Reuse one Posthog instance per app or process when possible to avoid competing background queues and missed shutdown flushes. Multiple clients are supported when intentional.
+Failed to load spaCy lemma model: spaCy is not installed. Install it with: pip install mem0ai[nlp]
+Failed to load spaCy full model: spaCy is not installed. Install it with: pip install mem0ai[nlp]
+[PostHog] [FEATURE FLAGS] PostHog feature flags quota limited, resetting feature flag data.  Learn more about billing limits at https://posthog.com/docs/billing/limits-alerts
+[PostHog] [FEATURE FLAGS] Quota limit exceeded: [PostHog] Feature flags quota limited (200)
+[PostHog] [FEATURE FLAGS] PostHog feature flags quota limited, resetting feature flag data.  Learn more about billing limits at https://posthog.com/docs/billing/limits-alerts
+[PostHog] [FEATURE FLAGS] Quota limit exceeded: [PostHog] Feature flags quota limited (200)
+[mem0-full] conversation 1/10 (197 cases) cum_calls=19 cum_in=176141 cum_out=8407 cum_usd=0.08 projected_usd=0.84 elapsed=199s
+Traceback (most recent call last):
+  File "/Users/fujiyoshi/oss/ERINYS-mem/.venv/lib/python3.14/site-packages/portalocker/portalocker.py", line 398, in lock
+    self.locker(fd, flags)
+    ~~~~~~~~~~~^^^^^^^^^^^
+BlockingIOError: [Errno 35] Resource temporarily unavailable
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/fujiyoshi/oss/ERINYS-mem/.venv/lib/python3.14/site-packages/qdrant_client/local/qdrant_local.py", line 167, in _load
+    portalocker.lock(
+    ~~~~~~~~~~~~~~~~^
+        self._flock_file,
+        ^^^^^^^^^^^^^^^^^
+        portalocker.LockFlags.EXCLUSIVE | portalocker.LockFlags.NON_BLOCKING,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/fujiyoshi/oss/ERINYS-mem/.venv/lib/python3.14/site-packages/portalocker/portalocker.py", line 441, in lock
+    _posix_locker_instance.lock(file, flags)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "/Users/fujiyoshi/oss/ERINYS-mem/.venv/lib/python3.14/site-packages/portalocker/portalocker.py", line 401, in lock
+    raise exceptions.AlreadyLocked(
+    ...<3 lines>...
+    ) from exc_value
+portalocker.exceptions.AlreadyLocked: [Errno 35] Resource temporarily unavailable
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/fujiyoshi/oss/ERINYS-mem/benchmarks/comparison/run_mem0_full.py", line 259, in <module>
+    main()
+    ~~~~^^
+  File "/Users/fujiyoshi/oss/ERINYS-mem/benchmarks/comparison/run_mem0_full.py", line 230, in main
+    results, governor = _run_grouped(args, cases, prior, progress_path, meter)
+                        ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/fujiyoshi/oss/ERINYS-mem/benchmarks/comparison/run_mem0_full.py", line 186, in _run_grouped
+    system = Mem0System(conv_key, storage_dir, meter)
+  File "/Users/fujiyoshi/oss/ERINYS-mem/benchmarks/comparison/mem0_adapter.py", line 136, in __init__
+    self.memory = Memory.from_config(_memory_config(storage_dir, meter))
+                  ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/fujiyoshi/oss/ERINYS-mem/.venv/lib/python3.14/site-packages/mem0/memory/main.py", line 737, in from_config
+    return cls(config)
+  File "/Users/fujiyoshi/oss/ERINYS-mem/.venv/lib/python3.14/site-packages/mem0/memory/main.py", line 540, in __init__
+    self._telemetry_vector_store = VectorStoreFactory.create(
+                                   ~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self.config.vector_store.provider, telemetry_config
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/fujiyoshi/oss/ERINYS-mem/.venv/lib/python3.14/site-packages/mem0/utils/factory.py", line 216, in create
+    return vector_store_instance(**config)
+  File "/Users/fujiyoshi/oss/ERINYS-mem/.venv/lib/python3.14/site-packages/mem0/vector_stores/qdrant.py", line 81, in __init__
+    self.client = QdrantClient(**params)
+                  ~~~~~~~~~~~~^^^^^^^^^^
+  File "/Users/fujiyoshi/oss/ERINYS-mem/.venv/lib/python3.14/site-packages/qdrant_client/qdrant_client.py", line 127, in __init__
+    self._client = QdrantLocal(
+                   ~~~~~~~~~~~^
+        location=path,
+        ^^^^^^^^^^^^^^
+        force_disable_check_same_thread=force_disable_check_same_thread,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/fujiyoshi/oss/ERINYS-mem/.venv/lib/python3.14/site-packages/qdrant_client/local/qdrant_local.py", line 86, in __init__
+    self._load()
+    ~~~~~~~~~~^^
+  File "/Users/fujiyoshi/oss/ERINYS-mem/.venv/lib/python3.14/site-packages/qdrant_client/local/qdrant_local.py", line 172, in _load
+    raise RuntimeError(
+    ...<2 lines>...
+    )
+RuntimeError: Storage folder /Users/fujiyoshi/.mem0/migrations_qdrant is already accessed by another instance of Qdrant client. If you require concurrent access, use Qdrant server instead.
+[mem0-full] resume: 197 checkpointed cases reused
+[PostHog] Multiple active PostHog clients detected for the same project API key and host. Reuse one Posthog instance per app or process when possible to avoid competing background queues and missed shutdown flushes. Multiple clients are supported when intentional.
+Failed to load spaCy lemma model: spaCy is not installed. Install it with: pip install mem0ai[nlp]
+Failed to load spaCy full model: spaCy is not installed. Install it with: pip install mem0ai[nlp]
+[mem0-full] conversation 2/10 (302 cases) cum_calls=19 cum_in=173079 cum_out=8123 cum_usd=0.08 projected_usd=0.74 elapsed=168s
+[PostHog] [FEATURE FLAGS] PostHog feature flags quota limited, resetting feature flag data.  Learn more about billing limits at https://posthog.com/docs/billing/limits-alerts
+[PostHog] [FEATURE FLAGS] Quota limit exceeded: [PostHog] Feature flags quota limited (200)
+[PostHog] [FEATURE FLAGS] PostHog feature flags quota limited, resetting feature flag data.  Learn more about billing limits at https://posthog.com/docs/billing/limits-alerts
+[PostHog] [FEATURE FLAGS] Quota limit exceeded: [PostHog] Feature flags quota limited (200)
+[mem0-full] conversation 3/10 (495 cases) cum_calls=51 cum_in=468982 cum_out=21062 cum_usd=0.22 projected_usd=1.00 elapsed=425s
+[PostHog] [FEATURE FLAGS] PostHog feature flags quota limited, resetting feature flag data.  Learn more about billing limits at https://posthog.com/docs/billing/limits-alerts
+[PostHog] [FEATURE FLAGS] Quota limit exceeded: [PostHog] Feature flags quota limited (200)
+[PostHog] [FEATURE FLAGS] PostHog feature flags quota limited, resetting feature flag data.  Learn more about billing limits at https://posthog.com/docs/billing/limits-alerts
+[PostHog] [FEATURE FLAGS] Quota limit exceeded: [PostHog] Feature flags quota limited (200)
+[PostHog] [FEATURE FLAGS] PostHog feature flags quota limited, resetting feature flag data.  Learn more about billing limits at https://posthog.com/docs/billing/limits-alerts
+[PostHog] [FEATURE FLAGS] Quota limit exceeded: [PostHog] Feature flags quota limited (200)
+[mem0-full] conversation 4/10 (755 cases) cum_calls=80 cum_in=736295 cum_out=33094 cum_usd=0.35 projected_usd=1.04 elapsed=702s
+[PostHog] [FEATURE FLAGS] PostHog feature flags quota limited, resetting feature flag data.  Learn more about billing limits at https://posthog.com/docs/billing/limits-alerts
+[PostHog] [FEATURE FLAGS] Quota limit exceeded: [PostHog] Feature flags quota limited (200)
+[PostHog] [FEATURE FLAGS] PostHog feature flags quota limited, resetting feature flag data.  Learn more about billing limits at https://posthog.com/docs/billing/limits-alerts
+[PostHog] [FEATURE FLAGS] Quota limit exceeded: [PostHog] Feature flags quota limited (200)
+[mem0-full] conversation 5/10 (997 cases) cum_calls=109 cum_in=1006099 cum_out=44922 cum_usd=0.47 projected_usd=1.07 elapsed=984s
+[mem0-full] conversation 6/10 (1155 cases) cum_calls=137 cum_in=1266851 cum_out=57687 cum_usd=0.60 projected_usd=1.08 elapsed=1243s
+[PostHog] [FEATURE FLAGS] PostHog feature flags quota limited, resetting feature flag data.  Learn more about billing limits at https://posthog.com/docs/billing/limits-alerts
+[PostHog] [FEATURE FLAGS] Quota limit exceeded: [PostHog] Feature flags quota limited (200)
+[mem0-full] conversation 7/10 (1345 cases) cum_calls=168 cum_in=1553466 cum_out=68964 cum_usd=0.73 projected_usd=1.10 elapsed=1483s
+[PostHog] [FEATURE FLAGS] PostHog feature flags quota limited, resetting feature flag data.  Learn more about billing limits at https://posthog.com/docs/billing/limits-alerts
+[PostHog] [FEATURE FLAGS] Quota limit exceeded: [PostHog] Feature flags quota limited (200)
+[PostHog] [FEATURE FLAGS] PostHog feature flags quota limited, resetting feature flag data.  Learn more about billing limits at https://posthog.com/docs/billing/limits-alerts
+[PostHog] [FEATURE FLAGS] Quota limit exceeded: [PostHog] Feature flags quota limited (200)
+[PostHog] [FEATURE FLAGS] PostHog feature flags quota limited, resetting feature flag data.  Learn more about billing limits at https://posthog.com/docs/billing/limits-alerts
+[PostHog] [FEATURE FLAGS] Quota limit exceeded: [PostHog] Feature flags quota limited (200)
+[PostHog] [FEATURE FLAGS] PostHog feature flags quota limited, resetting feature flag data.  Learn more about billing limits at https://posthog.com/docs/billing/limits-alerts
+[PostHog] [FEATURE FLAGS] Quota limit exceeded: [PostHog] Feature flags quota limited (200)
+[mem0-full] conversation 8/10 (1584 cases) cum_calls=198 cum_in=1831000 cum_out=82139 cum_usd=0.86 projected_usd=1.11 elapsed=1765s
+[PostHog] [FEATURE FLAGS] PostHog feature flags quota limited, resetting feature flag data.  Learn more about billing limits at https://posthog.com/docs/billing/limits-alerts
+[PostHog] [FEATURE FLAGS] Quota limit exceeded: [PostHog] Feature flags quota limited (200)
+[mem0-full] conversation 9/10 (1780 cases) cum_calls=223 cum_in=2061264 cum_out=91507 cum_usd=0.97 projected_usd=1.09 elapsed=1991s
+[PostHog] [FEATURE FLAGS] PostHog feature flags quota limited, resetting feature flag data.  Learn more about billing limits at https://posthog.com/docs/billing/limits-alerts
+[PostHog] [FEATURE FLAGS] Quota limit exceeded: [PostHog] Feature flags quota limited (200)
+[PostHog] [FEATURE FLAGS] PostHog feature flags quota limited, resetting feature flag data.  Learn more about billing limits at https://posthog.com/docs/billing/limits-alerts
+[PostHog] [FEATURE FLAGS] Quota limit exceeded: [PostHog] Feature flags quota limited (200)
+[PostHog] [FEATURE FLAGS] PostHog feature flags quota limited, resetting feature flag data.  Learn more about billing limits at https://posthog.com/docs/billing/limits-alerts
+[PostHog] [FEATURE FLAGS] Quota limit exceeded: [PostHog] Feature flags quota limited (200)
+[mem0-full] conversation 10/10 (1982 cases) cum_calls=253 cum_in=2339328 cum_out=102403 cum_usd=1.10 projected_usd=1.10 elapsed=2234s
+{
+  "status": "COMPLETED",
+  "n": 1982,
+  "overall": {
+    "r_at_k": 94.551,
+    "perfect_pct": 94.551,
+    "zero_pct": 5.449
+  },
+  "cost_governor": {
+    "alert_usd": 40.0,
+    "cap_usd": 48.0,
+    "input_usd_per_1m": 0.4,
+    "output_usd_per_1m": 1.6,
+    "final_cost_usd": 1.0996,
+    "alerted": false,
+    "resumed_prior_cases": 197,
+    "cost_scope": "segment_only",
+    "generated_at": "2026-08-19T13:10:12"
+  }
+}
+results_jsonl=/Users/fujiyoshi/oss/ERINYS-mem/benchmarks/comparison/results/results_mem0_locomo_full_20260819_131012.jsonl
+summary_json=/Users/fujiyoshi/oss/ERINYS-mem/benchmarks/comparison/results/summary_mem0_locomo_full_20260819_131012.json

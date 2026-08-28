@@ -24,3 +24,5 @@ rag,longmemeval,session_chunks_cosine_shared_embedding_engine,5,500,92.2,92.2,4.
 rag,longmemeval,session_chunks_cosine_shared_embedding_engine,10,500,95.2,95.2,4.397,9.191,181.474,0
 mem0,convomem,mem0_oss_local,10,250,83.133,82.4,262.299,772.687,22337.877,10687
 mem0,locomo,mem0_oss_local,10,1982,94.551,94.551,317.118,577.436,1714.758,253
+mem0,locomo,mem0_oss_local,10,197,95.939,95.939,265.892,403.26,132.515,19
+mem0,locomo,mem0_oss_local,10,197,97.97,97.97,251.945,414.329,125.163,19
