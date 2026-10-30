@@ -84,7 +84,7 @@ ValidType: TypeAlias = Literal[
 ]
 ValidDistillLevel: TypeAlias = Literal["concrete", "abstract", "meta"]
 ValidIntendedUse: TypeAlias = Literal["context", "evidence", "preference", "directive"]
-ValidSourceClass: TypeAlias = Literal["direct_user", "external"]
+ValidSourceClass: TypeAlias = Literal["direct_user", "external", "receipt"]
 
 
 class CliArgs(BaseModel):
@@ -227,7 +227,7 @@ def add_save_parser(
     parser.add_argument("--topic-key")
     parser.add_argument("--session-id")
     parser.add_argument("--metadata-json")
-    parser.add_argument("--source-class", choices=["direct_user", "external"])
+    parser.add_argument("--source-class", choices=["direct_user", "external", "receipt"])
     add_json_flag(parser)
 
 

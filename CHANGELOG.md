@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+## [0.6.1] — 2026-10-30
+
+### Added — receipt source class
+
+- `--source-class receipt` (CLI `save`) and `source_class="receipt"` (MCP
+  `erinys_save`) mark machine-generated records such as hook or finish-log
+  receipts. They are trusted for `evidence` only.
+- `erinys_search` and the recent-observation paths (`erinys_context`,
+  `erinys_recall` recent) drop receipts unless `intended_use="evidence"`, so
+  audit trails no longer crowd out real memories in context recall. Recent
+  lookups fetch extra rows so the requested limit is still filled.
+- Previously, clients that saved with `--source-class receipt` failed with
+  `invalid choice: 'receipt'`.
+
 ## [0.6.0] — 2026-07-29
 
 ### Added — timestamp-aware historical backfill

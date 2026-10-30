@@ -30,7 +30,14 @@ from .collider import MemoryCollider, get_collision, pair_similarity, save_colli
 from .claim_shadow_runtime import claim_shadow_enabled, observe_shadow_search
 from .config import ErinysConfig
 from .provenance import build_provenance
-from .sentry import blocked_count, build_memory_safety, screen_observation, screen_observations
+from .sentry import (
+    blocked_count,
+    build_memory_safety,
+    excluded_for_use,
+    filter_for_use,
+    screen_observation,
+    screen_observations,
+)
 from .db import (
     delete_observation_with_embedding,
     embedding_engine,
@@ -534,6 +541,7 @@ def _search_results(
     include_anti_patterns: bool,
     include_distilled: bool,
     metadata_filter: dict[str, object] | None,
+    intended_use: str = "context",
 ) -> list[dict[str, Any]]:
     _validate_metadata_filter(metadata_filter)
     normalized_limit = _validate_limit(limit)
@@ -562,6 +570,8 @@ def _search_results(
             continue
         if not include_distilled and record.get("distillation_level") is not None:
             continue
+        if excluded_for_use(record, intended_use):
+            continue
         filtered.append(record)
     return filtered[:normalized_limit]
 
@@ -572,6 +582,8 @@ def _recent_observations(
     intended_use: str = "context",
 ) -> list[dict[str, Any]]:
     normalized_limit = _validate_limit(limit)
+    # receipts are dropped for non-evidence uses, so fetch extra to still fill the limit
+    fetch_limit = normalized_limit if intended_use == "evidence" else normalized_limit * 3
     if project is None:
         rows = _db().execute(
             """
@@ -581,7 +593,7 @@ def _recent_observations(
             ORDER BY created_at DESC, id DESC
             LIMIT ?
             """,
-            [normalized_limit],
+            [fetch_limit],
         ).fetchall()
     else:
         rows = _db().execute(
@@ -592,9 +604,9 @@ def _recent_observations(
             ORDER BY created_at DESC, id DESC
             LIMIT ?
             """,
-            [project, normalized_limit],
+            [project, fetch_limit],
         ).fetchall()
-    records = [_normalize_observation(row) for row in rows]
+    records = filter_for_use([_normalize_observation(row) for row in rows], intended_use)[:normalized_limit]
     for record in records:
         record["effective_strength"] = current_strength(
             float(record["base_strength"]),
@@ -1185,7 +1197,9 @@ def erinys_search(
     """
 
     def action() -> dict[str, Any]:
-        results = _search_results(query, project, limit, include_anti_patterns, include_distilled, metadata_filter)
+        results = _search_results(
+            query, project, limit, include_anti_patterns, include_distilled, metadata_filter, intended_use,
+        )
         eff_projects = _resolve_allowed_projects(allowed_projects)
         eff_scopes = _resolve_allowed_scopes(allowed_scopes)
         if policy_is_active(eff_projects, eff_scopes):

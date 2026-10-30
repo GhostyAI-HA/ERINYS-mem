@@ -33,6 +33,7 @@ class SourceClass(StrEnum):
     POLICY = "policy"
     EXTERNAL = "external"
     DERIVED = "derived"
+    RECEIPT = "receipt"  # machine-generated receipts (hooks, finish logs): audit evidence, not recall context
     UNKNOWN = "unknown"
 
 
@@ -81,6 +82,8 @@ def _requested_source_class(value: str | None) -> SourceClass | None:
         return SourceClass.EXTERNAL
     if value == SourceClass.DIRECT_USER:
         return SourceClass.DIRECT_USER
+    if value == SourceClass.RECEIPT:
+        return SourceClass.RECEIPT
     return None
 
 
@@ -105,6 +108,8 @@ def _trusted_uses(source_class: SourceClass) -> list[IntendedUse]:
         return list(IntendedUse)
     if source_class is SourceClass.DIRECT_USER:
         return [IntendedUse.CONTEXT, IntendedUse.EVIDENCE, IntendedUse.PREFERENCE]
+    if source_class is SourceClass.RECEIPT:
+        return [IntendedUse.EVIDENCE]
     if source_class in {
         SourceClass.FIRST_PARTY_AGENT,
         SourceClass.FIRST_PARTY_RECORD,
@@ -281,6 +286,23 @@ def screen_observations(
     intended_use: str = IntendedUse.CONTEXT,
 ) -> list[dict[str, object]]:
     return [screen_observation(record, intended_use) for record in records]
+
+
+def excluded_for_use(record: Mapping[str, object], intended_use: str) -> bool:
+    """Drop records that belong on a different shelf for this use (e.g. receipts read as context).
+
+    BLOCK returns a placeholder for dangerous content. Receipts are not dangerous,
+    but they are not memories to think with, so they are left out of recall entirely.
+    """
+    use = IntendedUse(intended_use)
+    return memory_safety(record).source_class is SourceClass.RECEIPT and use is not IntendedUse.EVIDENCE
+
+
+def filter_for_use(
+    records: list[dict[str, object]],
+    intended_use: str = IntendedUse.CONTEXT,
+) -> list[dict[str, object]]:
+    return [record for record in records if not excluded_for_use(record, intended_use)]
 
 
 def blocked_count(records: list[Mapping[str, object]]) -> int:
