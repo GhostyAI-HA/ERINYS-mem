@@ -26,6 +26,7 @@ from .backfill_contracts import (
     backfill_validation_code,
     backfill_validation_message,
 )
+from .db import _load_sqlite_vec
 from .sentry import screen_observation
 
 
@@ -669,7 +670,16 @@ def readonly_db_uri(path: Path) -> str:
 def connect_readonly_db(path: Path) -> sqlite3.Connection:
     conn = sqlite3.connect(readonly_db_uri(path), uri=True)
     conn.row_factory = sqlite3.Row
+    load_vector_extension(conn)
     return conn
+
+
+def load_vector_extension(conn: sqlite3.Connection) -> None:
+    # vec_observations is a vec0 table; without sqlite-vec, vector_health reports unavailable
+    try:
+        _load_sqlite_vec(conn)
+    except (ImportError, RuntimeError, sqlite3.OperationalError):
+        pass
 
 
 def table_exists(conn: sqlite3.Connection, table: str) -> bool:

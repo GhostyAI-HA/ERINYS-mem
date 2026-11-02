@@ -15,6 +15,8 @@ from pytest import CaptureFixture, MonkeyPatch
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from erinys_memory import cli  # noqa: E402
+from erinys_memory.db import _load_sqlite_vec  # noqa: E402
+from erinys_memory.embedding import serialize_f32  # noqa: E402
 
 
 HEALTHY_VECTOR = {"orphan_vectors": 0, "missing_vectors": 0}
@@ -191,6 +193,55 @@ def test_stats_can_read_sqlite_without_server(tmp_path: Path, monkeypatch: Monke
     assert data["dream_days_ago"] is not None
 
 
+def test_stats_loads_sqlite_vec_for_vector_health(tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
+    db_path = tmp_path / "memory.db"
+    create_vector_stats_db(db_path)
+    monkeypatch.setenv("ERINYS_DB_PATH", str(db_path))
+
+    result = cli.dispatch(cli.CliArgs(command="stats", project="my-project"), None)
+
+    assert result["ok"] is True
+    assert result["data"]["vector_health"] == {"orphan_vectors": 1, "missing_vectors": 1, "status": "ok"}
+
+
+def test_stats_reports_vector_unavailable_without_sqlite_vec(tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
+    db_path = tmp_path / "memory.db"
+    create_vector_stats_db(db_path)
+    monkeypatch.setenv("ERINYS_DB_PATH", str(db_path))
+    monkeypatch.setitem(sys.modules, "sqlite_vec", None)
+
+    result = cli.dispatch(cli.CliArgs(command="stats", project="my-project"), None)
+
+    assert result["ok"] is True
+    assert result["data"]["observation_count"] == 3
+    assert result["data"]["vector_health"] == {
+        "orphan_vectors": 0,
+        "missing_vectors": 0,
+        "status": "unavailable",
+        "reason": "sqlite-vec extension unavailable in this runtime",
+    }
+
+
+def create_vector_stats_db(path: Path) -> None:
+    # vectors for 1, 2 and 99: observation 3 has no vector, vector 99 has no observation
+    with sqlite3.connect(path) as conn:
+        _load_sqlite_vec(conn)
+        conn.executescript("""
+            CREATE TABLE observations(
+                id INTEGER PRIMARY KEY,
+                project TEXT,
+                distillation_level TEXT,
+                distilled_from INTEGER
+            );
+            CREATE VIRTUAL TABLE vec_observations USING vec0(embedding float[4]);
+            INSERT INTO observations(id, project) VALUES (1, 'my-project'), (2, 'my-project'), (3, 'my-project');
+        """)
+        conn.executemany(
+            "INSERT INTO vec_observations(rowid, embedding) VALUES (?, ?)",
+            [(rowid, serialize_f32([0.1, 0.2, 0.3, 0.4])) for rowid in (1, 2, 99)],
+        )
+
+
 def create_stats_db(path: Path) -> None:
     with sqlite3.connect(path) as conn:
         conn.executescript("""
@@ -250,6 +301,18 @@ def test_readonly_search_uses_like_fallback(tmp_path: Path, monkeypatch: MonkeyP
 
     assert result["ok"] is True
     assert result["data"]["mode"] == "readonly-keyword"
+    assert [row["id"] for row in result["data"]["results"]] == [1]
+
+
+def test_readonly_search_works_without_sqlite_vec(tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
+    db_path = tmp_path / "memory.db"
+    create_readonly_db(db_path)
+    monkeypatch.setenv("ERINYS_DB_PATH", str(db_path))
+    monkeypatch.setitem(sys.modules, "sqlite_vec", None)
+
+    result = cli.dispatch(cli.parse_args(["search", "Buffer", "--project", "my-project", "--readonly", "--json"]), None)
+
+    assert result["ok"] is True
     assert [row["id"] for row in result["data"]["results"]] == [1]
 
 

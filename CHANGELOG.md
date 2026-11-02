@@ -2,6 +2,22 @@
 
 ## [Unreleased]
 
+## [0.6.2] — 2026-11-02
+
+### Fixed — vector health in local CLI commands
+
+- `erinys stats` reported `vector_health.status: "unavailable"` even when
+  sqlite-vec was installed and vector search worked. The local read-only DB
+  connection never loaded the extension, so reading the `vec0` table failed
+  with `no such module: vec0`. The connection now loads sqlite-vec when it can,
+  and `vector_health` reports real orphan / missing vector counts.
+- The same false result made `erinys health` report `degraded` and the
+  `erinys doctor` DB check report `vectors: unavailable`. Both are fixed by the
+  same change.
+- Where sqlite-vec really cannot load (not installed, or the interpreter cannot
+  load SQLite extensions), `vector_health` still reports `unavailable` as
+  before, and read-only `search` / `recall` / `context` keep working.
+
 ## [0.6.1] — 2026-10-30
 
 ### Added — receipt source class
