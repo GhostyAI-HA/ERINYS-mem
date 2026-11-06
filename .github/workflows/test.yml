@@ -5,6 +5,11 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  schedule:
+    # Weekly run against the latest dependency releases, so upstream changes
+    # (e.g. an embedding library update) surface even when nothing is pushed.
+    - cron: "17 3 * * 1"
+  workflow_dispatch:
 
 jobs:
   test:
